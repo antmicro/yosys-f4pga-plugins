@@ -412,7 +412,7 @@ void UhdmAst::process_design() {
 	// Once we walked everything, unroll that as children of this node
 	for (auto pair : shared.top_nodes) {
 		if (!pair.second) continue;
-		if (!pair.second->get_bool_attribute(ID::partial)) {
+		if (!pair.second->get_bool_attribute(ID::partial) || pair.second->get_bool_attribute(ID::keep)) {
 			if (pair.second->type == AST::AST_PACKAGE)
 				current_node->children.insert(current_node->children.begin(), pair.second);
 			else
@@ -609,9 +609,10 @@ void UhdmAst::process_port() {
 		} else if (n == vpiOutput) {
 			current_node->is_output = true;
 		} else if (n == vpiInout) {
-			current_node->is_input = true;
-			current_node->is_output = true;
+			current_node->is_input = current_node->is_output = true;
 		}
+	} else {
+		current_node->is_input = current_node->is_output = true;
 	}
 }
 
