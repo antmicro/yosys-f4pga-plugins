@@ -1168,6 +1168,16 @@ void UhdmAst::process_array_net() {
 	while (vpiHandle net_h = vpi_scan(itr)) {
 		auto net_type = vpi_get(vpiType, net_h);
 		if (net_type == vpiLogicNet) {
+			vpiHandle typespec_h = vpi_handle(vpiTypespec, net_h);
+			if(typespec_h)
+			{
+				std::string name = vpi_get_str(vpiName, typespec_h);
+				sanitize_symbol_name(name);
+				auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
+				wiretype_node->str = name;
+				current_node->children.push_back(wiretype_node);
+			    current_node->is_custom_type=true;
+			}
 			current_node->is_logic = true;
 			current_node->is_signed = vpi_get(vpiSigned, net_h);
 			visit_range(net_h,
@@ -1195,7 +1205,7 @@ void UhdmAst::process_array_net() {
 					  [&](AST::AstNode* node) {
 						  current_node->children.push_back(node);
 					  });
-	if (current_node->children.size() == 2) { // If there is 2 ranges, change type to AST_MEMORY
+	if (current_node->children.size() >= 2) { // If there is 2 ranges, change type to AST_MEMORY
 		current_node->type = AST::AST_MEMORY;
 	}
 }
