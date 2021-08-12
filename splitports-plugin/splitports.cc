@@ -233,7 +233,7 @@ struct SplitportsPass : public ScriptPass {
         }
     }
 
-    void script() override { run("splitnets -ports -driver -format ()"); }
+    void script() override { run("splitnets -ports -format ()"); }
 
 } SplitportsPass;
 
