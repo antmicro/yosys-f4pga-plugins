@@ -382,6 +382,8 @@ struct SynthQuickLogicPass : public ScriptPass {
             run(stringf("write_edif -nogndvcc -attrprop -pvector par %s %s", this->currmodule.c_str(), edif_file.c_str()));
         }
 
+        run("opt_clean -purge");
+
         if (check_label("verilog")) {
             if (!verilog_file.empty()) {
                 run("write_verilog -noattr -nohex " + verilog_file);
