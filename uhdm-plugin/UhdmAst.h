@@ -27,7 +27,7 @@ class UhdmAst {
 				      const std::function<void(AST::AstNode*)>& f);
 
 		// Visit children of type vpiRange that belong to the given parent node.
-		void visit_range(vpiHandle obj_h, const std::function<void(AST::AstNode*)> &f);
+		void visit_range(vpiHandle obj_h, const std::function<void(AST::AstNode*)> &f, bool is_packed=true);
 
 		// Visit the default expression assigned to a variable.
 		void visit_default_expr(vpiHandle obj_h);

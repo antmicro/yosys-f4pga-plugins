@@ -21,6 +21,20 @@ static void sanitize_symbol_name(std::string &name) {
 	}
 }
 
+static AST::AstNode *make_range(int left, int right, bool is_signed = false)
+{
+	// generate a pre-validated range node for a fixed signal range.
+	auto range = new AST::AstNode(AST::AST_RANGE);
+	range->range_left = left;
+	range->range_right = right;
+	range->range_valid = true;
+	range->children.push_back(AST::AstNode::mkconst_int(left, true));
+	range->children.push_back(AST::AstNode::mkconst_int(right, true));
+	range->is_signed = is_signed;
+	return range;
+}
+
+
 static std::string get_name(vpiHandle obj_h) {
 	std::string name;
 	if (auto s = vpi_get_str(vpiName, obj_h)) {
@@ -76,7 +90,8 @@ void UhdmAst::visit_one_to_one(const std::vector<int> child_node_types,
 }
 
 void UhdmAst::visit_range(vpiHandle obj_h,
-						  const std::function<void(AST::AstNode*)>& f)  {
+						  const std::function<void(AST::AstNode*)>& f,
+						  bool is_packed)  {
 	std::vector<AST::AstNode*> range_nodes;
 	visit_one_to_many({vpiRange},
 					  obj_h,
@@ -85,7 +100,7 @@ void UhdmAst::visit_range(vpiHandle obj_h,
 					  });
 	if (range_nodes.size() > 1) {
 		auto multirange_node = new AST::AstNode(AST::AST_MULTIRANGE);
-		multirange_node->is_packed = true;
+		multirange_node->is_packed = is_packed;
 		multirange_node->children = range_nodes;
 		f(multirange_node);
 	} else if (!range_nodes.empty()) {
@@ -1156,14 +1171,13 @@ void UhdmAst::process_packed_array_net() {
 							  current_node->children.push_back(node->children[0]);
 						  current_node->is_custom_type = node->is_custom_type;
 					  });
-	visit_one_to_many({vpiRange},
-					  obj_h,
-					  [&](AST::AstNode* node) {
-						  current_node->children.push_back(node);
-					  });
+	visit_range(obj_h,
+			[&](AST::AstNode* node) {
+			    current_node->children.push_back(node);
+			});
 }
 void UhdmAst::process_array_net() {
-	current_node = make_ast_node(AST::AST_WIRE);
+	current_node = make_ast_node(AST::AST_MEMORY);
 	vpiHandle itr = vpi_iterate(vpiNet, obj_h);
 	while (vpiHandle net_h = vpi_scan(itr)) {
 		auto net_type = vpi_get(vpiType, net_h);
@@ -1200,11 +1214,11 @@ void UhdmAst::process_array_net() {
 		vpi_release_handle(net_h);
 	}
 	vpi_release_handle(itr);
-	visit_one_to_many({vpiRange},
-					  obj_h,
-					  [&](AST::AstNode* node) {
-						  current_node->children.push_back(node);
-					  });
+	visit_range(obj_h,
+			[&](AST::AstNode* node) {
+			    current_node->children.push_back(node);
+			},false);
+
 	if (current_node->children.size() >= 2) { // If there is 2 ranges, change type to AST_MEMORY
 		current_node->type = AST::AST_MEMORY;
 	}
@@ -1571,7 +1585,7 @@ void UhdmAst::process_stream_op()  {
 	AST::AstNode *bits_call = nullptr;
 	if (lhs_node->type == AST::AST_WIRE) {
 		module_node->children.insert(module_node->children.begin(), lhs_node->clone());
-		temp_var = lhs_node->clone(); //if we already have wire as lhs, we want to create the same wire for temp_var 
+		temp_var = lhs_node->clone(); //if we already have wire as lhs, we want to create the same wire for temp_var
 		lhs_node->delete_children();
 		lhs_node->type = AST::AST_IDENTIFIER;
 		bits_call = make_ast_node(AST::AST_FCALL, {lhs_node->clone()});
