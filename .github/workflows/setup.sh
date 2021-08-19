@@ -39,7 +39,7 @@ start_section Install-Yosys
         mkdir -p ~/.local-src
         mkdir -p ~/.local-bin
         cd ~/.local-src
-        git clone https://github.com/SymbiFlow/yosys.git -b master+wip
+        git clone https://github.com/antmicro/yosys.git -b uhdm-kr/yosys-uhdm-plugin-cleanup
         cd yosys
         PREFIX=$HOME/.local-bin make -j$(nproc)
         PREFIX=$HOME/.local-bin make install
