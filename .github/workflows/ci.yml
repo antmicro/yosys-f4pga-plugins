@@ -20,7 +20,7 @@ jobs:
           pkg-config libboost-system-dev libboost-python-dev \
           libboost-filesystem-dev zlib1g-dev clang-format-8 cmake
 
-    - name: Install Yosys
+    - name: Install Yosys and Surelog
       run: source .github/workflows/setup.sh
       env:
         OS: ${{ runner.os }}

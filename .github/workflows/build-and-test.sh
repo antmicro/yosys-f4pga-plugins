@@ -7,7 +7,7 @@ source .github/workflows/common.sh
 ##########################################################################
 
 start_section Building
-make plugins -j`nproc`
+make UHDM_INSTALL_DIR=$HOME/.local-bin  plugins -j`nproc`
 end_section
 
 ##########################################################################
