@@ -34,7 +34,8 @@ jobs:
       env:
         OS: ${{ runner.os }}
 
-    - name: Format
-      run: source .github/workflows/format-check.sh
-      env:
-        OS: ${{ runner.os }}
+          # Disable formatting for now
+          #    - name: Format
+          #      run: source .github/workflows/format-check.sh
+          #      env:
+          #        OS: ${{ runner.os }}
