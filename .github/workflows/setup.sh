@@ -39,13 +39,33 @@ start_section Install-Yosys
         mkdir -p ~/.local-src
         mkdir -p ~/.local-bin
         cd ~/.local-src
-        git clone https://github.com/SymbiFlow/yosys.git -b master+wip
+        git clone https://github.com/antmicro/yosys.git -b uhdm-kr/yosys-uhdm-plugin-cleanup
         cd yosys
         PREFIX=$HOME/.local-bin make -j$(nproc)
         PREFIX=$HOME/.local-bin make install
         echo $(which yosys)
         echo $(which yosys-config)
         echo $(yosys-config --datdir)
+        cd ..
+    fi
+)
+end_section
+
+start_section Install-Surelog
+(
+    if [ ! -e ~/.local-bin/bin/surelog ]; then
+        echo '=========================='
+        echo 'Building surelog'
+        echo '=========================='
+        mkdir -p ~/.local-src
+        mkdir -p ~/.local-bin
+        cd ~/.local-src
+        git clone --recursive https://github.com/chipsalliance/Surelog.git -b master
+        cd Surelog
+        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$HOME/.local-bin -DCMAKE_POSITION_INDEPENDENT_CODE=ON -S . -B build
+	cmake --build build -j $(nproc)
+	cmake --install build
+	cd ..
     fi
 )
 end_section
