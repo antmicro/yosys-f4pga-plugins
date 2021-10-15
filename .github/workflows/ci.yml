@@ -18,6 +18,15 @@ jobs:
 
   Run-tests:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {BUILD_UPSTREAM: "0"}
+          - {BUILD_UPSTREAM: "1"}
+
+    name: "BUILD_UPSTREAM=${{matrix.BUILD_UPSTREAM}}"
+
     steps:
 
     - uses: actions/checkout@v2
@@ -48,9 +57,12 @@ jobs:
         source .github/workflows/setup.sh
       env:
         OS: ${{ runner.os }}
+        BUILD_UPSTREAM: ${{ matrix.BUILD_UPSTREAM }}
 
     - name: Build and test plugins
       run: |
+        if [ "$BUILD_UPSTREAM" = "1" ]; then source env/conda/bin/activate yosys-plugins; fi
         source .github/workflows/build-and-test.sh
       env:
         OS: ${{ runner.os }}
+        BUILD_UPSTREAM: ${{ matrix.BUILD_UPSTREAM }}
