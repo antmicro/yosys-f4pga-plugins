@@ -1999,6 +1999,7 @@ AST::AstNode *UhdmAst::process_object(vpiHandle obj_handle)
     case vpiStructNet:
         process_custom_var();
         break;
+    case vpiShortIntVar:
     case vpiIntVar:
         process_int_var();
         break;
