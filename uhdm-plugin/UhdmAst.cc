@@ -2002,6 +2002,7 @@ AST::AstNode *UhdmAst::process_object(vpiHandle obj_handle)
     case vpiIntVar:
         process_int_var();
         break;
+    case vpiShortRealVar:
     case vpiRealVar:
         process_real_var();
         break;
