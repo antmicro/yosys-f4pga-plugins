@@ -48,6 +48,8 @@ class UhdmAstShared
     std::unordered_map<std::string, AST::AstNode *> param_types;
 
     std::vector<std::string> multirange_scope;
+
+    AST::AstNode* current_top_node = nullptr;
 };
 
 YOSYS_NAMESPACE_END

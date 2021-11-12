@@ -473,6 +473,7 @@ void UhdmAst::process_module()
     if (!is_module_instance) {
         if (shared.top_nodes.find(type) != shared.top_nodes.end()) {
             current_node = shared.top_nodes[type];
+            shared.current_top_node = current_node;
             visit_one_to_many({vpiModule, vpiInterface, vpiParameter, vpiParamAssign, vpiPort, vpiNet, vpiArrayNet, vpiTaskFunc, vpiGenScopeArray,
                                vpiContAssign, vpiVariables},
                               obj_h, [&](AST::AstNode *node) {
@@ -489,6 +490,7 @@ void UhdmAst::process_module()
             current_node = make_ast_node(AST::AST_MODULE);
             current_node->str = type;
             shared.top_nodes[current_node->str] = current_node;
+            shared.current_top_node = current_node;
             current_node->attributes[ID::partial] = AST::AstNode::mkconst_int(1, false, 1);
             visit_one_to_many({vpiTypedef}, obj_h, [&](AST::AstNode *node) {
                 if (node) {
@@ -543,6 +545,7 @@ void UhdmAst::process_module()
         }
         module_node->str = module_name;
         shared.top_nodes[module_node->str] = module_node;
+        shared.current_top_node = module_node;
         auto cell_instance = vpi_get(vpiCellInstance, obj_h);
         if (cell_instance) {
             module_node->attributes[ID::whitebox] = AST::AstNode::mkconst_int(1, false, 1);
@@ -865,6 +868,8 @@ void UhdmAst::process_array_var()
 void UhdmAst::process_param_assign()
 {
     current_node = make_ast_node(AST::AST_PARAMETER);
+    std::vector<AST::AstNode *> packed_ranges;
+    std::vector<AST::AstNode *> unpacked_ranges;
     visit_one_to_one({vpiLhs}, obj_h, [&](AST::AstNode *node) {
         if (node) {
             current_node->type = node->type;
@@ -874,6 +879,16 @@ void UhdmAst::process_param_assign()
             for (auto *c : node->children) {
                 if (c->type != AST::AST_CONSTANT) {
                     current_node->children.push_back(c->clone());
+                }
+            }
+            if (node->attributes.count(ID::packed_ranges)) {
+                for (auto r : node->attributes[ID::packed_ranges]->children) {
+                    packed_ranges.push_back(r->clone());
+                }
+            }
+            if (node->attributes.count(ID::unpacked_ranges)) {
+                for (auto r : node->attributes[ID::unpacked_ranges]->children) {
+                    unpacked_ranges.push_back(r->clone());
                 }
             }
             current_node->is_custom_type = node->is_custom_type;
@@ -886,6 +901,7 @@ void UhdmAst::process_param_assign()
             current_node->children.insert(current_node->children.begin(), node);
         }
     });
+    add_multirange_wire(current_node, packed_ranges, unpacked_ranges);
 }
 
 void UhdmAst::process_cont_assign_var_init()
@@ -993,9 +1009,17 @@ size_t UhdmAst::add_multirange_attribute(AST::AstNode *wire_node, const std::vec
 {
     size_t size = 1;
     for (size_t i = 0; i < ranges.size(); i++) {
+        // hackish way of setting current_ast_mod as it is required
+        // for simplify to get references for already defined ids
+        log_assert(shared.current_top_node != nullptr);
+        AST_INTERNAL::current_ast_mod = shared.current_top_node;
+        // we need to setup current top ast as this simplify
+        // needs to have access to all already definied ids
         while (ranges[i]->simplify(true, false, false, 1, -1, false, false)) {
         }
-        // TODO: this probably is not always true, but for now assume this
+        // unset current_ast_mod
+        AST_INTERNAL::current_ast_mod = nullptr;
+        // TODO: (with simplify, it can be always true) this probably is not always true, but for now assume this
         log_assert(ranges[i]->children[0]->type == AST::AST_CONSTANT);
         log_assert(ranges[i]->children[1]->type == AST::AST_CONSTANT);
         wire_node->multirange_dimensions.push_back(min(ranges[i]->children[0]->integer, ranges[i]->children[1]->integer));
@@ -1034,8 +1058,18 @@ void UhdmAst::convert_multiranges(AST::AstNode *module_node)
             return;
         }
         std::string name = shared.multirange_scope.back() + node->str;
-        if (node->type == AST::AST_WIRE) {
+        if (node->type == AST::AST_WIRE || node->type == AST::AST_PARAMETER || node->type == AST::AST_LOCALPARAM) {
             if (node->attributes.count(ID::packed_ranges) || node->attributes.count(ID::unpacked_ranges)) {
+                if (node->attributes[ID::packed_ranges]->children.empty() && node->attributes[ID::unpacked_ranges]->children.empty()) {
+                    node->attributes.erase(ID::packed_ranges);
+                    node->attributes.erase(ID::unpacked_ranges);
+                    return;
+                }
+                // wire inside typedef, it doesn't have any ids, so convert now
+                if (node->str.empty()) {
+                    convert_packed_unpacked_range(node, std::vector<AST::AstNode *>());
+                    return;
+                }
                 node->dumpAst(NULL, "test >");
                 log_warning("Name: %s\n", name.c_str());
                 log_assert(multirange_wires.count(name) == 0);
@@ -1157,11 +1191,15 @@ void UhdmAst::convert_packed_unpacked_range(AST::AstNode *wire_node, const std::
         }
     } else {
         log_warning("Not convering node\n");
-        ranges.insert(ranges.end(), packed_ranges.begin(), packed_ranges.end());
-        ranges.insert(ranges.end(), unpacked_ranges.begin(), unpacked_ranges.end());
+        for (auto r : packed_ranges) {
+            ranges.push_back(r->clone());
+        }
+        for (auto r : unpacked_ranges) {
+            ranges.push_back(r->clone());
+        }
         // if there is only one packed and one unpacked range,
         // and wire is not port wire, change type to AST_MEMORY
-        if (packed_ranges.size() == 1 && unpacked_ranges.size() == 1 && !wire_node->is_input && !wire_node->is_output) {
+        if (wire_node->type == AST::AST_WIRE && packed_ranges.size() == 1 && unpacked_ranges.size() == 1 && !wire_node->is_input && !wire_node->is_output) {
             wire_node->type = AST::AST_MEMORY;
         }
     }
@@ -1205,6 +1243,7 @@ void UhdmAst::process_array_net()
 void UhdmAst::process_package()
 {
     current_node = make_ast_node(AST::AST_PACKAGE);
+    shared.current_top_node = current_node;
     visit_one_to_many({vpiParameter, vpiParamAssign}, obj_h, [&](AST::AstNode *node) {
         if (node) {
             node->str = strip_package_name(node->str);
@@ -1275,13 +1314,16 @@ void UhdmAst::process_modport()
 void UhdmAst::process_io_decl()
 {
     current_node = nullptr;
+    std::vector<AST::AstNode *> packed_ranges;   // comes before wire name
+    std::vector<AST::AstNode *> unpacked_ranges; // comes after wire name
     visit_one_to_one({vpiExpr}, obj_h, [&](AST::AstNode *node) { current_node = node; });
     if (current_node == nullptr) {
         current_node = make_ast_node(AST::AST_MODPORTMEMBER);
-        visit_range(obj_h, [&](AST::AstNode *node) { current_node->children.push_back(node); });
+        visit_one_to_many({vpiRange}, obj_h, [&](AST::AstNode *node) { packed_ranges.push_back(node); });
     }
     visit_one_to_one({vpiTypedef}, obj_h, [&](AST::AstNode *node) {
         if (node) {
+            node->dumpAst(NULL, "node >");
             if (!node->str.empty()) {
                 auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
                 wiretype_node->str = node->str;
@@ -1293,8 +1335,19 @@ void UhdmAst::process_io_decl()
                 for (auto child : node->children) {
                     current_node->children.push_back(child->clone());
                 }
+                if (node->attributes.count(ID::packed_ranges)) {
+                    for (auto r : node->attributes[ID::packed_ranges]->children) {
+                        packed_ranges.push_back(r->clone());
+                    }
+                }
+                if (node->attributes.count(ID::unpacked_ranges)) {
+                    for (auto r : node->attributes[ID::unpacked_ranges]->children) {
+                        unpacked_ranges.push_back(r->clone());
+                    }
+                }
                 current_node->is_logic = node->is_logic;
                 current_node->is_reg = node->is_reg;
+                current_node->dumpAst(NULL, "curr node >");
             }
             delete node;
         }
@@ -1309,6 +1362,7 @@ void UhdmAst::process_io_decl()
             current_node->is_output = true;
         }
     }
+    add_multirange_wire(current_node, packed_ranges, unpacked_ranges);
 }
 
 void UhdmAst::process_always()
@@ -2112,6 +2166,8 @@ void UhdmAst::process_logic_typespec()
 {
     current_node = make_ast_node(AST::AST_WIRE);
     current_node->is_logic = true;
+    std::vector<AST::AstNode *> packed_ranges;   // comes before wire name
+    std::vector<AST::AstNode *> unpacked_ranges; // comes after wire name
     if (!current_node->str.empty() && current_node->str.find("::") == std::string::npos) {
         std::string package_name = "";
         if (vpiHandle instance_h = vpi_handle(vpiInstance, obj_h)) {
@@ -2122,11 +2178,8 @@ void UhdmAst::process_logic_typespec()
             vpi_release_handle(instance_h);
         }
     }
-    visit_range(obj_h, [&](AST::AstNode *node) {
-        if (node) {
-            current_node->children.push_back(node);
-        }
-    });
+    visit_one_to_many({vpiRange}, obj_h, [&](AST::AstNode *node) { packed_ranges.push_back(node); });
+    add_multirange_wire(current_node, packed_ranges, unpacked_ranges);
     if (!current_node->str.empty()) {
         move_type_to_new_typedef(find_ancestor({AST::AST_MODULE, AST::AST_PACKAGE}), current_node->clone());
     }
@@ -2386,6 +2439,68 @@ void UhdmAst::process_net()
         }
     });
     visit_one_to_many({vpiRange}, obj_h, [&](AST::AstNode *node) { packed_ranges.push_back(node); });
+    add_multirange_wire(current_node, packed_ranges, unpacked_ranges);
+}
+
+void UhdmAst::process_parameter()
+{
+    auto type = vpi_get(vpiLocalParam, obj_h) == 1 ? AST::AST_LOCALPARAM : AST::AST_PARAMETER;
+    current_node = make_ast_node(type, {}, true);
+    std::vector<AST::AstNode *> packed_ranges;   // comes before wire name
+    std::vector<AST::AstNode *> unpacked_ranges; // comes after wire name
+    // if (vpi_get_str(vpiImported, obj_h) != "") { } //currently unused
+    visit_one_to_many({vpiRange}, obj_h, [&](AST::AstNode *node) { unpacked_ranges.push_back(node); });
+    vpiHandle typespec_h = vpi_handle(vpiTypespec, obj_h);
+    if (typespec_h) {
+        int typespec_type = vpi_get(vpiType, typespec_h);
+        switch (typespec_type) {
+        case vpiBitTypespec:
+        case vpiLogicTypespec: {
+            current_node->is_logic = true;
+            visit_one_to_many({vpiRange}, typespec_h, [&](AST::AstNode *node) { packed_ranges.push_back(node); });
+            shared.report.mark_handled(typespec_h);
+            break;
+        }
+        case vpiEnumTypespec:
+        case vpiRealTypespec:
+        case vpiIntTypespec: {
+            shared.report.mark_handled(typespec_h);
+            break;
+        }
+        case vpiStructTypespec: {
+            visit_one_to_one({vpiTypespec}, obj_h, [&](AST::AstNode *node) {
+                auto wiretype_node = make_ast_node(AST::AST_WIRETYPE);
+                wiretype_node->str = node->str;
+                current_node->children.push_back(wiretype_node);
+                current_node->is_custom_type = true;
+                auto it = shared.param_types.find(current_node->str);
+                if (it == shared.param_types.end())
+                    shared.param_types.insert(std::make_pair(current_node->str, node));
+            });
+            break;
+        }
+        case vpiArrayTypespec: {
+            shared.report.mark_handled(typespec_h);
+            visit_one_to_many({vpiRange}, typespec_h, [&](AST::AstNode *node) { packed_ranges.push_back(node); });
+            break;
+        }
+        default: {
+            const uhdm_handle *const handle = (const uhdm_handle *)typespec_h;
+            const UHDM::BaseClass *const object = (const UHDM::BaseClass *)handle->object;
+            report_error("%s:%d: Encountered unhandled typespec in process_parameter: '%s' of type '%s'\n", object->VpiFile().c_str(),
+                         object->VpiLineNo(), object->VpiName().c_str(), UHDM::VpiTypeName(typespec_h).c_str());
+            break;
+        }
+        }
+        vpi_release_handle(typespec_h);
+    } else {
+        AST::AstNode *constant_node = process_value(obj_h);
+        if (constant_node) {
+            constant_node->filename = current_node->filename;
+            constant_node->location = current_node->location;
+            current_node->children.push_back(constant_node);
+        }
+    }
     add_multirange_wire(current_node, packed_ranges, unpacked_ranges);
 }
 
