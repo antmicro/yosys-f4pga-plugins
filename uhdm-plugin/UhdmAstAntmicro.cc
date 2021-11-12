@@ -1,18 +1,12 @@
-#define mkconst_real(x) AST::AstNode::mkconst_real(x)
-
-void UhdmAst::visit_range(vpiHandle obj_h, const std::function<void(AST::AstNode *)> &f)
+namespace RTLIL
 {
-    std::vector<AST::AstNode *> range_nodes;
-    visit_one_to_many({vpiRange}, obj_h, [&](AST::AstNode *node) { range_nodes.push_back(node); });
-    if (range_nodes.size() > 1) {
-        auto multirange_node = new AST::AstNode(AST::AST_MULTIRANGE);
-        multirange_node->is_packed = true;
-        multirange_node->children = range_nodes;
-        f(multirange_node);
-    } else if (!range_nodes.empty()) {
-        f(range_nodes[0]);
-    }
-}
+namespace ID
+{
+IdString packed_ranges{"\\packed_ranges"};
+IdString unpacked_ranges{"\\unpacked_ranges"};
+} // namespace ID
+} // namespace RTLIL
+#define mkconst_real(x) AST::AstNode::mkconst_real(x)
 
 void UhdmAst::process_tagged_pattern()
 {

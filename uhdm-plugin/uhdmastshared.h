@@ -49,7 +49,7 @@ class UhdmAstShared
 
     std::vector<std::string> multirange_scope;
 
-    AST::AstNode* current_top_node = nullptr;
+    AST::AstNode *current_top_node = nullptr;
 };
 
 YOSYS_NAMESPACE_END

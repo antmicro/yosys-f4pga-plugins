@@ -1088,7 +1088,8 @@ void UhdmAst::convert_multiranges(AST::AstNode *module_node)
 }
 
 AST::AstNode *UhdmAst::convert_range(const AST::AstNode *wire_node, const std::vector<AST::AstNode *> &packed_ranges,
-                                     const std::vector<AST::AstNode *> &unpacked_ranges, const std::vector<int> single_elem_size, int i)
+                                     const std::vector<AST::AstNode *> &unpacked_ranges, const std::vector<int> single_elem_size, int i,
+                                     AST::AstNode *orig_wire)
 {
     log_warning("i: %d, unpacked_size: %ld, packed_size: %ld, single_elem_size: %d\n", i, unpacked_ranges.size(), packed_ranges.size(),
                 single_elem_size[i]);
@@ -1096,30 +1097,49 @@ AST::AstNode *UhdmAst::convert_range(const AST::AstNode *wire_node, const std::v
     AST::AstNode *result = nullptr;
     // we want to start converting from the end
     if (i < static_cast<int>(wire_node->children.size()) - 1) {
-        result = convert_range(wire_node, packed_ranges, unpacked_ranges, single_elem_size, i + 1);
+        result = convert_range(wire_node, packed_ranges, unpacked_ranges, single_elem_size, i + 1, orig_wire);
     }
     // special case, we want to select whole wire
     if (wire_node->children.size() == 0 && i == 0) {
         result = make_range(single_elem_size[i] - 1, 0);
     } else {
-        int range_left = 1;
-        int range_right = 1;
+        AST::AstNode *range_left = nullptr;
+        AST::AstNode *range_right = nullptr;
         if (wire_node->children[i]->children.size() == 2) {
-            range_left = wire_node->children[i]->children[0]->integer;
-            range_right = wire_node->children[i]->children[1]->integer;
+            range_left = wire_node->children[i]->children[0]->clone();
+            range_right = wire_node->children[i]->children[1]->clone();
         } else {
-            range_left = wire_node->children[i]->children[0]->integer;
-            range_right = wire_node->children[i]->children[0]->integer;
+            range_left = wire_node->children[i]->children[0]->clone();
+            range_right = wire_node->children[i]->children[0]->clone();
         }
-        range_left = (range_left + 1) * single_elem_size[i + 1] - 1;
-        range_right = range_right * single_elem_size[i + 1];
-        log_warning("range_left: %d, range_right: %d\n", range_left, range_right);
+        if (!orig_wire->multirange_swapped.empty()) {
+            log_warning("check swapped\n");
+            bool is_swapped = orig_wire->multirange_swapped[orig_wire->multirange_swapped.size() - i - 1];
+            log_warning("is swapped: %d\n", is_swapped);
+            if (is_swapped) {
+                range_left = new AST::AstNode(
+                  AST::AST_SUB,
+                  AST::AstNode::mkconst_int(orig_wire->multirange_dimensions[orig_wire->multirange_dimensions.size() - (i * 2) - 1] - 1, false),
+                  range_left->clone());
+                range_right = new AST::AstNode(
+                  AST::AST_SUB,
+                  AST::AstNode::mkconst_int(orig_wire->multirange_dimensions[orig_wire->multirange_dimensions.size() - (i * 2) - 1] - 1, false),
+                  range_right->clone());
+            }
+        }
+        range_left =
+          new AST::AstNode(AST::AST_SUB,
+                           new AST::AstNode(AST::AST_MUL, new AST::AstNode(AST::AST_ADD, range_left->clone(), AST::AstNode::mkconst_int(1, false)),
+                                            AST::AstNode::mkconst_int(single_elem_size[i + 1], false)),
+                           AST::AstNode::mkconst_int(1, false));
+        range_right = new AST::AstNode(AST::AST_MUL, range_right->clone(), AST::AstNode::mkconst_int(single_elem_size[i + 1], false));
         if (result) {
             result->dumpAst(NULL, "old_result >");
-            range_right += result->range_right;
-            range_left = range_right + result->range_left - result->range_right;
+            range_right = new AST::AstNode(AST::AST_ADD, range_right->clone(), result->children[1]->clone());
+            range_left = new AST::AstNode(AST::AST_SUB, new AST::AstNode(AST::AST_ADD, range_right->clone(), result->children[0]->clone()),
+                                          result->children[1]->clone());
         }
-        result = make_range(range_left, range_right);
+        result = new AST::AstNode(AST::AST_RANGE, range_left, range_right);
         result->dumpAst(NULL, "new_result >");
     }
     // return range from *current* selected range
@@ -1141,7 +1161,8 @@ void UhdmAst::convert_packed_unpacked_range(AST::AstNode *wire_node, const std::
     size_t packed_size = 1;
     size_t unpacked_size = 1;
     std::vector<AST::AstNode *> ranges;
-    bool convert_node = packed_ranges.size() > 1 || unpacked_ranges.size() > 1;
+    bool convert_node = packed_ranges.size() > 1 || unpacked_ranges.size() > 1 ||
+                        ((wire_node->is_input || wire_node->is_output) && ((packed_ranges.size() > 0 || unpacked_ranges.size() > 0)));
     for (auto id : identifers) {
         // if we accessing whole AST_MEMORY, we want to change AST_MEMORY to single RANGE,
         // as yosys currently doesn't support accessing whole memory, if it was converted
@@ -1179,7 +1200,7 @@ void UhdmAst::convert_packed_unpacked_range(AST::AstNode *wire_node, const std::
                     single_elem_size.push_back(elem_size);
                 }
                 std::reverse(single_elem_size.begin(), single_elem_size.end());
-                auto result = convert_range(wire, packed_ranges, unpacked_ranges, single_elem_size, 0);
+                auto result = convert_range(wire, packed_ranges, unpacked_ranges, single_elem_size, 0, wire_node);
                 for (size_t i = 0; i < wire->children.size(); i++) {
                     delete wire->children[i];
                 }
@@ -1199,7 +1220,8 @@ void UhdmAst::convert_packed_unpacked_range(AST::AstNode *wire_node, const std::
         }
         // if there is only one packed and one unpacked range,
         // and wire is not port wire, change type to AST_MEMORY
-        if (wire_node->type == AST::AST_WIRE && packed_ranges.size() == 1 && unpacked_ranges.size() == 1 && !wire_node->is_input && !wire_node->is_output) {
+        if (wire_node->type == AST::AST_WIRE && packed_ranges.size() == 1 && unpacked_ranges.size() == 1 && !wire_node->is_input &&
+            !wire_node->is_output) {
             wire_node->type = AST::AST_MEMORY;
         }
     }

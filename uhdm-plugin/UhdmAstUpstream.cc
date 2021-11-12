@@ -216,7 +216,6 @@ AST::AstNode *const2ast(std::string code, char case_type, bool warn_z)
 }
 } // namespace VERILOG_FRONTEND
 
-
 void UhdmAst::process_tagged_pattern()
 {
     auto assign_node = find_ancestor({AST::AST_ASSIGN, AST::AST_ASSIGN_EQ, AST::AST_ASSIGN_LE});

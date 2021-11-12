@@ -133,7 +133,8 @@ class UhdmAst
     void add_multirange_wire(AST::AstNode *node, std::vector<AST::AstNode *> packed_ranges, std::vector<AST::AstNode *> unpacked_ranges);
     size_t add_multirange_attribute(AST::AstNode *wire_node, const std::vector<AST::AstNode *> ranges);
     AST::AstNode *convert_range(const AST::AstNode *wire_node, const std::vector<AST::AstNode *> &packed_ranges,
-                                const std::vector<AST::AstNode *> &unpacked_ranges, const std::vector<int> single_elem_size, int i);
+                                const std::vector<AST::AstNode *> &unpacked_ranges, const std::vector<int> single_elem_size, int i,
+                                AST::AstNode *orig_wire);
     void convert_multiranges(AST::AstNode *module_node);
     void visitEachDescendant(AST::AstNode *node, const std::function<void(AST::AstNode *)> &f);
     void add_or_replace_child(AST::AstNode *parent, AST::AstNode *child);
