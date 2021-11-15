@@ -1034,6 +1034,9 @@ void UhdmAst::visitEachDescendant(AST::AstNode *node, const std::function<void(A
 {
     shared.multirange_scope.push_back("");
     for (auto child : node->children) {
+        if (node->type == AST::AST_MODULE || node->type == AST::AST_PACKAGE) {
+            shared.current_top_node = node;
+        }
         if (node->type == AST::AST_FUNCTION) {
             shared.multirange_scope.push_back(node->str);
         }
