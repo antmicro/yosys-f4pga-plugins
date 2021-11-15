@@ -110,14 +110,10 @@ void UhdmAst::add_multirange_wire(AST::AstNode *node, std::vector<AST::AstNode *
     node->attributes[ID::packed_ranges] = AST::AstNode::mkconst_int(1, false, 1);
     node->attributes[ID::packed_ranges]->children.insert(node->attributes[ID::packed_ranges]->children.end(), packed_ranges.begin(),
                                                          packed_ranges.end());
-    node->attributes[ID::packed_ranges]->dumpAst(NULL, "packed_ranges >");
 
     node->attributes[ID::unpacked_ranges] = AST::AstNode::mkconst_int(1, false, 1);
     node->attributes[ID::unpacked_ranges]->children.insert(node->attributes[ID::unpacked_ranges]->children.end(), unpacked_ranges.begin(),
                                                            unpacked_ranges.end());
-    node->attributes[ID::unpacked_ranges]->dumpAst(NULL, "unpacked_ranges >");
-
-    node->dumpAst(NULL, "full node >");
 }
 
 void UhdmAst::visit_range(vpiHandle obj_h, const std::function<void(AST::AstNode *)> &f)
@@ -1071,8 +1067,6 @@ void UhdmAst::convert_multiranges(AST::AstNode *module_node)
                     convert_packed_unpacked_range(node, std::vector<AST::AstNode *>());
                     return;
                 }
-                node->dumpAst(NULL, "test >");
-                log_warning("Name: %s\n", name.c_str());
                 log_assert(multirange_wires.count(name) == 0);
                 multirange_wires[name] = std::make_pair(node, std::vector<AST::AstNode *>());
             }
@@ -1092,8 +1086,6 @@ AST::AstNode *UhdmAst::convert_range(const AST::AstNode *wire_node, const std::v
                                      const std::vector<AST::AstNode *> &unpacked_ranges, const std::vector<int> single_elem_size, int i,
                                      AST::AstNode *orig_wire)
 {
-    log_warning("i: %d, unpacked_size: %ld, packed_size: %ld, single_elem_size: %d\n", i, unpacked_ranges.size(), packed_ranges.size(),
-                single_elem_size[i]);
     log_assert(i < static_cast<int>(unpacked_ranges.size() + packed_ranges.size()));
     AST::AstNode *result = nullptr;
     // we want to start converting from the end
@@ -1114,9 +1106,7 @@ AST::AstNode *UhdmAst::convert_range(const AST::AstNode *wire_node, const std::v
             range_right = wire_node->children[i]->children[0]->clone();
         }
         if (!orig_wire->multirange_swapped.empty()) {
-            log_warning("check swapped\n");
             bool is_swapped = orig_wire->multirange_swapped[orig_wire->multirange_swapped.size() - i - 1];
-            log_warning("is swapped: %d\n", is_swapped);
             if (is_swapped) {
                 range_left = new AST::AstNode(
                   AST::AST_SUB,
@@ -1135,13 +1125,11 @@ AST::AstNode *UhdmAst::convert_range(const AST::AstNode *wire_node, const std::v
                            AST::AstNode::mkconst_int(1, false));
         range_right = new AST::AstNode(AST::AST_MUL, range_right->clone(), AST::AstNode::mkconst_int(single_elem_size[i + 1], false));
         if (result) {
-            result->dumpAst(NULL, "old_result >");
             range_right = new AST::AstNode(AST::AST_ADD, range_right->clone(), result->children[1]->clone());
             range_left = new AST::AstNode(AST::AST_SUB, new AST::AstNode(AST::AST_ADD, range_right->clone(), result->children[0]->clone()),
                                           result->children[1]->clone());
         }
         result = new AST::AstNode(AST::AST_RANGE, range_left, range_right);
-        result->dumpAst(NULL, "new_result >");
     }
     // return range from *current* selected range
     // in the end, it results in whole selected range
@@ -1156,8 +1144,6 @@ void UhdmAst::convert_packed_unpacked_range(AST::AstNode *wire_node, const std::
 {
     const std::vector<AST::AstNode *> packed_ranges = wire_node->attributes[ID::packed_ranges]->children;
     const std::vector<AST::AstNode *> unpacked_ranges = wire_node->attributes[ID::unpacked_ranges]->children;
-    log_warning("Packed size: %ld, unpacked size: %ld, ids size: %ld\n", packed_ranges.size(), unpacked_ranges.size(), identifers.size());
-    wire_node->dumpAst(NULL, "old wire >");
     size_t size = 1;
     size_t packed_size = 1;
     size_t unpacked_size = 1;
@@ -1168,7 +1154,6 @@ void UhdmAst::convert_packed_unpacked_range(AST::AstNode *wire_node, const std::
         // if we accessing whole AST_MEMORY, we want to change AST_MEMORY to single RANGE,
         // as yosys currently doesn't support accessing whole memory, if it was converted
         // to the registers
-        //id->dumpAst(NULL, "id >");
         if (id->children.size() == 0 && packed_ranges.size() == 1 && unpacked_ranges.size() == 1) {
             wire_node->type = AST::AST_WIRE;
             convert_node = true;
@@ -1183,17 +1168,14 @@ void UhdmAst::convert_packed_unpacked_range(AST::AstNode *wire_node, const std::
         unpacked_size = add_multirange_attribute(wire_node, unpacked_ranges);
         size = packed_size * unpacked_size;
         ranges.push_back(make_range(size - 1, 0));
-        log_warning("Convering node, size: %ld\n", size);
         if (size > 0) {
             for (auto wire : identifers) {
-                log_warning("%s -> %s\n", wire_node->str.c_str(), wire->str.c_str());
                 if (wire->children.empty())
                     continue;
                 // only check rewire identifiers
                 // TODO: this probably needs to check also for params/args?
                 if (wire->type != AST::AST_IDENTIFIER || wire->basic_prep == true)
                     continue;
-                wire->dumpAst(NULL, "old id >");
                 int elem_size = 1;
                 std::vector<int> single_elem_size;
                 single_elem_size.push_back(elem_size);
@@ -1209,11 +1191,9 @@ void UhdmAst::convert_packed_unpacked_range(AST::AstNode *wire_node, const std::
                 wire->children.clear();
                 wire->children.push_back(result);
                 wire->basic_prep = true;
-                wire->dumpAst(NULL, "new id >");
             }
         }
     } else {
-        log_warning("Not convering node\n");
         for (auto r : packed_ranges) {
             ranges.push_back(r->clone());
         }
@@ -1230,7 +1210,6 @@ void UhdmAst::convert_packed_unpacked_range(AST::AstNode *wire_node, const std::
     wire_node->attributes.erase(ID::packed_ranges);
     wire_node->attributes.erase(ID::unpacked_ranges);
     wire_node->children.insert(wire_node->children.end(), ranges.begin(), ranges.end());
-    wire_node->dumpAst(NULL, "new wire >");
 }
 void UhdmAst::process_array_net()
 {
@@ -1347,7 +1326,6 @@ void UhdmAst::process_io_decl()
     }
     visit_one_to_one({vpiTypedef}, obj_h, [&](AST::AstNode *node) {
         if (node) {
-            node->dumpAst(NULL, "node >");
             if (!node->str.empty()) {
                 auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
                 wiretype_node->str = node->str;
@@ -1371,7 +1349,6 @@ void UhdmAst::process_io_decl()
                 }
                 current_node->is_logic = node->is_logic;
                 current_node->is_reg = node->is_reg;
-                current_node->dumpAst(NULL, "curr node >");
             }
             delete node;
         }
@@ -2114,7 +2091,6 @@ void UhdmAst::process_function()
 
 void UhdmAst::process_logic_var()
 {
-    log_warning("Name: %s\n", get_name(obj_h, true).c_str());
     current_node = make_ast_node(AST::AST_WIRE);
     current_node->is_logic = true;
     std::vector<AST::AstNode *> packed_ranges;   // comes before wire name
@@ -2363,9 +2339,7 @@ void UhdmAst::process_port()
         case vpiLogicNet: {
             current_node->is_logic = true;
             current_node->is_signed = vpi_get(vpiSigned, actual_h);
-            current_node->dumpAst(NULL, "curr >");
             visit_one_to_many({vpiRange}, actual_h, [&](AST::AstNode *node) {
-                node->dumpAst(NULL, "range >");
                 packed_ranges.push_back(node);
             });
 
