@@ -106,6 +106,7 @@ void UhdmAst::visit_one_to_one(const std::vector<int> child_node_types, vpiHandl
 
 void UhdmAst::add_multirange_wire(AST::AstNode *node, std::vector<AST::AstNode *> packed_ranges, std::vector<AST::AstNode *> unpacked_ranges)
 {
+    std::reverse(packed_ranges.begin(), packed_ranges.end());
     node->attributes[ID::packed_ranges] = AST::AstNode::mkconst_int(1, false, 1);
     node->attributes[ID::packed_ranges]->children.insert(node->attributes[ID::packed_ranges]->children.end(), packed_ranges.begin(),
                                                          packed_ranges.end());
@@ -1167,7 +1168,7 @@ void UhdmAst::convert_packed_unpacked_range(AST::AstNode *wire_node, const std::
         // if we accessing whole AST_MEMORY, we want to change AST_MEMORY to single RANGE,
         // as yosys currently doesn't support accessing whole memory, if it was converted
         // to the registers
-        id->dumpAst(NULL, "id >");
+        //id->dumpAst(NULL, "id >");
         if (id->children.size() == 0 && packed_ranges.size() == 1 && unpacked_ranges.size() == 1) {
             wire_node->type = AST::AST_WIRE;
             convert_node = true;
@@ -1186,7 +1187,8 @@ void UhdmAst::convert_packed_unpacked_range(AST::AstNode *wire_node, const std::
         if (size > 0) {
             for (auto wire : identifers) {
                 log_warning("%s -> %s\n", wire_node->str.c_str(), wire->str.c_str());
-                // log_assert(wire_node->str == wire->str);
+                if (wire->children.empty())
+                    continue;
                 // only check rewire identifiers
                 // TODO: this probably needs to check also for params/args?
                 if (wire->type != AST::AST_IDENTIFIER || wire->basic_prep == true)
