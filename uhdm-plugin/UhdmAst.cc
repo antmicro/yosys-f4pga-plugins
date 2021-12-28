@@ -491,7 +491,7 @@ static AST::AstNode *convert_dot(AST::AstNode *wire_node, AST::AstNode *node, AS
 static void setup_current_scope(std::unordered_map<std::string, AST::AstNode *> top_nodes, AST::AstNode *current_top_node)
 {
     for (auto it = top_nodes.begin(); it != top_nodes.end(); it++) {
-        if (it->second->type == AST::AST_PACKAGE) {
+        if (it->second && it->second->type == AST::AST_PACKAGE) {
             for (auto &o : it->second->children) {
                 // import only parameters
                 if (o->type == AST::AST_TYPEDEF || o->type == AST::AST_PARAMETER || o->type == AST::AST_LOCALPARAM) {
@@ -1036,7 +1036,7 @@ AST::AstNode *UhdmAst::find_ancestor(const std::unordered_set<AST::AstNodeType> 
 void UhdmAst::process_design()
 {
     current_node = make_ast_node(AST::AST_DESIGN);
-    visit_one_to_many({UHDM::uhdmallInterfaces, UHDM::uhdmallPackages, UHDM::uhdmallModules, UHDM::uhdmtopModules, vpiTypedef}, obj_h,
+    visit_one_to_many({UHDM::uhdmallInterfaces, UHDM::uhdmallPackages, UHDM::uhdmtopModules, vpiTypedef}, obj_h,
                       [&](AST::AstNode *node) {
                           if (node) {
                               shared.top_nodes[node->str] = node;
@@ -1081,7 +1081,7 @@ void UhdmAst::process_design()
 void UhdmAst::simplify_parameter(AST::AstNode *parameter, AST::AstNode *module_node)
 {
     for (auto it = shared.top_nodes.begin(); it != shared.top_nodes.end(); it++) {
-        if (it->second->type == AST::AST_PACKAGE) {
+        if (it->second && it->second->type == AST::AST_PACKAGE) {
             for (auto &o : it->second->children) {
                 // import only parameters
                 if (o->type == AST::AST_TYPEDEF || o->type == AST::AST_PARAMETER || o->type == AST::AST_LOCALPARAM) {
@@ -1126,6 +1126,43 @@ void UhdmAst::simplify_parameter(AST::AstNode *parameter, AST::AstNode *module_n
 }
 #endif
 
+std::string UhdmAst::get_modulename() {
+    std::string type = vpi_get_str(vpiDefName, obj_h);
+    std::string name = vpi_get_str(vpiName, obj_h) ? vpi_get_str(vpiName, obj_h) : type;
+    sanitize_symbol_name(type);
+    sanitize_symbol_name(name);
+    std::string module_parameters;
+    visit_one_to_many({vpiParamAssign}, obj_h, [&](AST::AstNode *node) {
+        if (node && node->type == AST::AST_PARAMETER) {
+#ifdef BUILD_UPSTREAM
+            if (node->children[0]->type != AST::AST_CONSTANT) {
+                if (shared.top_nodes.count(type)) {
+                    simplify_parameter(node, shared.top_nodes[type]);
+                    log_assert(node->children[0]->type == AST::AST_CONSTANT || node->children[0]->type == AST::AST_REALVALUE);
+                }
+            }
+#endif
+            if (shared.top_nodes.count(type)) {
+                if (!node->children[0]->str.empty())
+                    module_parameters += node->str + "=" + node->children[0]->str;
+                else
+                    module_parameters +=
+                      node->str + "=" + std::to_string(node->children[0]->bits.size()) + "'d" + std::to_string(node->children[0]->integer);
+            }
+            delete node;
+        }
+    });
+    // rename module in same way yosys do
+    std::string module_name;
+    if (module_parameters.size() > 60)
+        module_name = "$paramod$" + sha1(module_parameters) + type;
+    else if (!module_parameters.empty())
+        module_name = "$paramod" + type + module_parameters;
+    else
+        module_name = type;
+    return module_name;
+}
+
 void UhdmAst::process_module()
 {
     std::string type = vpi_get_str(vpiDefName, obj_h);
@@ -1135,32 +1172,32 @@ void UhdmAst::process_module()
     sanitize_symbol_name(name);
     type = strip_package_name(type);
     name = strip_package_name(name);
-    if (!is_module_instance) {
-        if (shared.top_nodes.find(type) != shared.top_nodes.end()) {
-            current_node = shared.top_nodes[type];
+    {
+        // Not a top module, create instance
+        std::string module_name = get_modulename();
+        auto module_node = shared.top_nodes[module_name];
+        auto cell_instance = vpi_get(vpiCellInstance, obj_h);
+        if (!module_node) {
+            module_node = shared.top_nodes[type];
+            if (!module_node) {
+                module_node = current_node = make_ast_node(AST::AST_MODULE);
+#ifdef BUILD_UPSTREAM
+                shared.current_top_node = current_node;
+#endif
+                visit_one_to_many({vpiModule, vpiInterface, vpiParameter, vpiParamAssign, vpiPort, vpiNet, vpiArrayNet, vpiTaskFunc, vpiGenScopeArray,
+                                   vpiContAssign, vpiVariables},
+                                  obj_h, [&](AST::AstNode *node) {
+                                      if (node) {
+                                          add_or_replace_child(current_node, node);
+                                      }
+                                  });
+            } else {
+                current_node = make_ast_node(AST::AST_MODULE);
+                current_node->str = type;
+                shared.top_nodes[current_node->str] = current_node;
 #ifdef BUILD_UPSTREAM
             shared.current_top_node = current_node;
 #endif
-            visit_one_to_many({vpiModule, vpiInterface, vpiParameter, vpiParamAssign, vpiPort, vpiNet, vpiArrayNet, vpiTaskFunc, vpiGenScopeArray,
-                               vpiContAssign, vpiVariables},
-                              obj_h, [&](AST::AstNode *node) {
-                                  if (node) {
-                                      add_or_replace_child(current_node, node);
-                                  }
-                              });
-            auto it = current_node->attributes.find(ID::partial);
-            if (it != current_node->attributes.end()) {
-                delete it->second;
-                current_node->attributes.erase(it);
-            }
-        } else {
-            current_node = make_ast_node(AST::AST_MODULE);
-            current_node->str = type;
-            shared.top_nodes[current_node->str] = current_node;
-#ifdef BUILD_UPSTREAM
-            shared.current_top_node = current_node;
-#endif
-            current_node->attributes[ID::partial] = AST::AstNode::mkconst_int(1, false, 1);
             visit_one_to_many({vpiTypedef}, obj_h, [&](AST::AstNode *node) {
                 if (node) {
                     move_type_to_new_typedef(current_node, node);
@@ -1175,56 +1212,11 @@ void UhdmAst::process_module()
                                       add_or_replace_child(current_node, node);
                                   }
                               });
-        }
-    } else {
-        // Not a top module, create instance
-        current_node = make_ast_node(AST::AST_CELL);
-        std::string module_parameters;
-        visit_one_to_many({vpiParamAssign}, obj_h, [&](AST::AstNode *node) {
-            if (node && node->type == AST::AST_PARAMETER) {
-#ifdef BUILD_UPSTREAM
-                if (node->children[0]->type != AST::AST_CONSTANT) {
-                    if (shared.top_nodes.count(type)) {
-                        simplify_parameter(node, shared.top_nodes[type]);
-                        log_assert(node->children[0]->type == AST::AST_CONSTANT || node->children[0]->type == AST::AST_REALVALUE);
-                    }
-                }
-#endif
-                if (shared.top_nodes.count(type)) {
-                    if (!node->children[0]->str.empty())
-                        module_parameters += node->str + "=" + node->children[0]->str;
-                    else
-                        module_parameters +=
-                          node->str + "=" + std::to_string(node->children[0]->bits.size()) + "'d" + std::to_string(node->children[0]->integer);
-                }
-                delete node;
-            }
-        });
-        // rename module in same way yosys do
-        std::string module_name;
-        if (module_parameters.size() > 60)
-            module_name = "$paramod$" + sha1(module_parameters) + type;
-        else if (!module_parameters.empty())
-            module_name = "$paramod" + type + module_parameters;
-        else
-            module_name = type;
-        auto module_node = shared.top_nodes[module_name];
-        auto cell_instance = vpi_get(vpiCellInstance, obj_h);
-        if (!module_node) {
-            module_node = shared.top_nodes[type];
-            if (!module_node) {
-                module_node = new AST::AstNode(AST::AST_MODULE);
-                module_node->str = type;
-                module_node->attributes[ID::partial] = AST::AstNode::mkconst_int(2, false, 1);
-                cell_instance = 1;
-                module_name = type;
-            }
-            if (!module_parameters.empty()) {
-                module_node = module_node->clone();
             }
         }
         module_node->str = module_name;
         shared.top_nodes[module_node->str] = module_node;
+        
         if (cell_instance) {
             module_node->attributes[ID::whitebox] = AST::AstNode::mkconst_int(1, false, 1);
         }
@@ -1286,9 +1278,13 @@ void UhdmAst::process_module()
                     module_node->attributes.erase(ID::partial);
                 }
         }
-        auto typeNode = new AST::AstNode(AST::AST_CELLTYPE);
-        typeNode->str = module_node->str;
-        current_node->children.insert(current_node->children.begin(), typeNode);
+        //if (is_module_instance) {
+        //    current_node = make_ast_node(AST::AST_CELL);
+        //    current_node->str = module_node->str;
+        //    auto typeNode = new AST::AstNode(AST::AST_CELLTYPE);
+        //    typeNode->str = module_node->str;
+        //    current_node->children.insert(current_node->children.begin(), typeNode);
+        //}
 #ifdef BUILD_UPSTREAM
         auto old_top = shared.current_top_node;
         shared.current_top_node = module_node;
@@ -1303,7 +1299,10 @@ void UhdmAst::process_module()
                 add_or_replace_child(module_node, node);
             }
         });
-        make_cell(obj_h, current_node, module_node);
+        if (is_module_instance) {
+            current_node = make_ast_node(AST::AST_CELL);
+            make_cell(obj_h, current_node, module_node);
+        } else current_node = module_node;
 #ifdef BUILD_UPSTREAM
         shared.current_top_node = old_top;
 #endif

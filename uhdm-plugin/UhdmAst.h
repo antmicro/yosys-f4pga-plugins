@@ -48,6 +48,8 @@ class UhdmAst
     // Processes the value connected to the specified node
     AST::AstNode *process_value(vpiHandle obj_h);
 
+    std::string get_modulename();
+
     // The parent UhdmAst
     UhdmAst *parent;
 
