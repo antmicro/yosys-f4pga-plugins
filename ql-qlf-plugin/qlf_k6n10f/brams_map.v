@@ -68,10 +68,6 @@ module \$__QLF_FACTOR_BRAM36_TDP (CLK2, CLK3, A1ADDR, A1DATA, A1EN, B1ADDR, B1DA
 	generate if (CFG_DBITS > 8) begin
 		TDP_BRAM36 #(
 			//`include "brams_init_36.vh"
-                        .READ_WIDTH_A(CFG_DBITS),
-                        .READ_WIDTH_B(CFG_DBITS),
-                        .WRITE_WIDTH_A(CFG_DBITS),
-                        .WRITE_WIDTH_B(CFG_DBITS),
 		) _TECHMAP_REPLACE_ (
 			.WDATA_A1(18'h3FFFF),
 			.WDATA_A2(18'h3FFFF),
