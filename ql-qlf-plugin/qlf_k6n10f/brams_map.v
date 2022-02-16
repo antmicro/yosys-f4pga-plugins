@@ -65,75 +65,38 @@ module \$__QLF_FACTOR_BRAM36_TDP (CLK2, CLK3, A1ADDR, A1DATA, A1EN, B1ADDR, B1DA
           assign WRITEDATAWIDTHB = 3'b101;
           assign READDATAWIDTHA = 3'b101;
 	end*/
-	generate if (CFG_DBITS > 8) begin
-		TDP_BRAM36 #(
-			//`include "brams_init_36.vh"
-		) _TECHMAP_REPLACE_ (
-			.WDATA_A1(18'h3FFFF),
-			.WDATA_A2(18'h3FFFF),
-			.RDATA_A1(DO[17:0]),
-			.RDATA_A2({DOP[3:0],DO[31:18]}),
-			.ADDR_A1(A1ADDR_15),
-			//.ADDR_A2(),	# skipped intentionally
-			//.CLK_A1(),	# skipped intentionally
-			.CLK_A2(CLK2),
-			.REN_A1(A1EN),
-			//.REN_A2(),
-			.WEN_A1(1'b0),
-			.WEN_A2(1'b0),
-			.BE_A1(2'b0),
-			.BE_A2(2'b0),
 
-			.WDATA_B1(DI[17:0]),
-			.WDATA_B2({DIP, DI[31:18]}),
-			.RDATA_B1(DOBDO[17:0]),
-			.RDATA_B2({DOPBDOP[3:0], DOBDO[31:18]}),
-			.ADDR_B1(B1ADDR_15),
-			//.ADDR_B2(),	# skipped intentionally
-			.CLK_B1(CLK3),
-			//.CLK_B2(),	# skipped intentionally
-			.REN_B1(1'b0),
-			.REN_B2(1'b0),
-			.WEN_B1(1'b1),
-			.WEN_B2(1'b1),
-			.BE_B2(B1EN[3:2]),
-			.BE_B1(B1EN[1:0]),
-		);
-	end else begin
-		TDP_BRAM36 #(
-			//`include "brams_init_32.vh"
-		) _TECHMAP_REPLACE_ (
-			.WDATA_A1(18'h3FFFF),
-			.WDATA_A2(18'h3FFFF),
-			.RDATA_A1(DO[17:0]),
-			.RDATA_A2({DOP[3:0],DO[31:18]}),
-			.ADDR_A1(A1ADDR_15),
-			//.ADDR_A2(),	# skipped intentionally
-			//.CLK_A1(),	# skipped intentionally
-			.CLK_A2(CLK2),
-			.REN_A1(A1EN),
-			//.REN_A2(),
-			.WEN_A1(1'b0),
-			.WEN_A2(1'b0),
-			.BE_A1(2'b0),
-			.BE_A2(2'b0),
+	TDP_BRAM36 #() _TECHMAP_REPLACE_ (
+		.WDATA_A1(18'h3FFFF),
+		.WDATA_A2(18'h3FFFF),
+		.RDATA_A1(DO[17:0]),
+		.RDATA_A2({DOP[3:0],DO[31:18]}),
+		.ADDR_A1(A1ADDR_15),
+		//.ADDR_A2(),	# skipped intentionally
+		//.CLK_A1(),	# skipped intentionally
+		.CLK_A2(CLK2),
+		.REN_A1(A1EN),
+		//.REN_A2(),
+		.WEN_A1(1'b0),
+		.WEN_A2(1'b0),
+		.BE_A1(2'b0),
+		.BE_A2(2'b0),
 
-			.WDATA_B1(DI[17:0]),
-			.WDATA_B2({DIP, DI[31:18]}),
-			.RDATA_B1(DOBDO[17:0]),
-			.RDATA_B2({DOPBDOP[3:0], DOBDO[31:18]}),
-			.ADDR_B1(B1ADDR_15),
-			//.ADDR_B2(),	# skipped intentionally
-			.CLK_B1(CLK3),
-			//.CLK_B2(),	# skipped intentionally
-			.REN_B1(1'b0),
-			.REN_B2(1'b0),
-			.WEN_B1(1'b1),
-			.WEN_B2(1'b1),
-			.BE_B2(B1EN[3:2]),
-			.BE_B1(B1EN[1:0]),
-		);
-	end endgenerate
+		.WDATA_B1(DI[17:0]),
+		.WDATA_B2({DIP, DI[31:18]}),
+		.RDATA_B1(DOBDO[17:0]),
+		.RDATA_B2({DOPBDOP[3:0], DOBDO[31:18]}),
+		.ADDR_B1(B1ADDR_15),
+		//.ADDR_B2(),	# skipped intentionally
+		.CLK_B1(CLK3),
+		//.CLK_B2(),	# skipped intentionally
+		.REN_B1(1'b0),
+		.REN_B2(1'b0),
+		.WEN_B1(1'b1),
+		.WEN_B2(1'b1),
+		.BE_B2(B1EN[3:2]),
+		.BE_B1(B1EN[1:0]),
+	);
 endmodule
 
 // ------------------------------------------------------------------------
