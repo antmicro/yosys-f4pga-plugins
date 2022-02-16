@@ -28,18 +28,11 @@ module \$__QLF_FACTOR_BRAM36_TDP (CLK2, CLK3, A1ADDR, A1DATA, A1EN, B1ADDR, B1DA
 
 	wire [14:0] A1ADDR_15;
 	wire [14:0] B1ADDR_15; 
-	//wire [7:0] B1EN_8 = //B1EN;
 
-	wire [3:0] DIP, DOP;
-	wire [31:0] DI, DO;
-
-	wire [31:0] DOBDO;
-	wire [3:0] DOPBDOP;
+	wire [35:0] DOBDO;
 
 	//wire [2:0] WRITEDATAWIDTHB;
 	//wire [2:0] READDATAWIDTHA;
-	assign A1DATA = { DOP[3], DO[31:24], DOP[2], DO[23:16], DOP[1], DO[15: 8], DOP[0], DO[ 7: 0] };
-	assign { DIP[3], DI[31:24], DIP[2], DI[23:16], DIP[1], DI[15: 8], DIP[0], DI[ 7: 0] } = B1DATA;
 
         assign A1ADDR_15[14:CFG_ABITS]  = 0;
         assign A1ADDR_15[CFG_ABITS-1:0] = A1ADDR;
@@ -69,8 +62,8 @@ module \$__QLF_FACTOR_BRAM36_TDP (CLK2, CLK3, A1ADDR, A1DATA, A1EN, B1ADDR, B1DA
 	TDP_BRAM36 #() _TECHMAP_REPLACE_ (
 		.WDATA_A1(18'h3FFFF),
 		.WDATA_A2(18'h3FFFF),
-		.RDATA_A1(DO[17:0]),
-		.RDATA_A2({DOP[3:0],DO[31:18]}),
+		.RDATA_A1(A1DATA[17:0]),
+		.RDATA_A2(A1DATA[35:18]),
 		.ADDR_A1(A1ADDR_15),
 		//.ADDR_A2(),	# skipped intentionally
 		//.CLK_A1(),	# skipped intentionally
@@ -82,10 +75,10 @@ module \$__QLF_FACTOR_BRAM36_TDP (CLK2, CLK3, A1ADDR, A1DATA, A1EN, B1ADDR, B1DA
 		.BE_A1(2'b0),
 		.BE_A2(2'b0),
 
-		.WDATA_B1(DI[17:0]),
-		.WDATA_B2({DIP, DI[31:18]}),
+		.WDATA_B1(B1DATA[17:0]),
+		.WDATA_B2(B1DATA[35:18]),
 		.RDATA_B1(DOBDO[17:0]),
-		.RDATA_B2({DOPBDOP[3:0], DOBDO[31:18]}),
+		.RDATA_B2(DOBDO[35:18]),
 		.ADDR_B1(B1ADDR_15),
 		//.ADDR_B2(),	# skipped intentionally
 		.CLK_B1(CLK3),
