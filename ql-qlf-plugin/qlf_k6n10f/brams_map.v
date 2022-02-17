@@ -38,7 +38,40 @@ module \$__QLF_FACTOR_BRAM36_TDP (CLK2, CLK3, A1ADDR, A1DATA, A1EN, B1ADDR, B1DA
 
 	wire [35:0] DOBDO;
 
+	wire FLUSH1;
+	wire FLUSH2;
 	wire SPLIT;
+	wire [10:0] UPAE1;
+	wire [10:0] UPAF1;
+	wire [10:0] UPAE2;
+	wire [10:0] UPAF2;
+	wire SYNC_FIFO1;
+	wire SYNC_FIFO2;
+	wire FMODE1;
+	wire FMODE2;
+	wire POWERDN1;
+	wire POWERDN2;
+	wire SLEEP1;
+	wire SLEEP2;
+	wire PROTECT1;
+	wire PROTECT2;
+	wire [8:0] RAM_ID_i;
+
+	wire PL_INIT_i;
+	wire PL_ENA_i;
+	wire PL_REN_i;
+	wire PL_CLK_i;
+	wire [1:0] PL_WEN_i;
+	wire [23:0] PL_ADDR_i;
+	wire [35:0] PL_DATA_i;
+	reg PL_INIT_o;
+	reg PL_ENA_o;
+	reg PL_REN_o;
+	reg PL_CLK_o;
+	reg [1:0] PL_WEN_o;
+	reg [23:0] PL_ADDR_o;
+	wire [35:0] PL_DATA_o;
+
 	wire [2:0] WMODE_A1;
 	wire [2:0] WMODE_A2;
 	wire [2:0] WMODE_B1;
@@ -47,8 +80,6 @@ module \$__QLF_FACTOR_BRAM36_TDP (CLK2, CLK3, A1ADDR, A1DATA, A1EN, B1ADDR, B1DA
 	wire [2:0] RMODE_A2;
 	wire [2:0] RMODE_B1;
 	wire [2:0] RMODE_B2;
-	//wire [2:0] WRITEDATAWIDTHB;
-	//wire [2:0] READDATAWIDTHA;
 
         assign A1ADDR_15[14:CFG_ABITS]  = 0;
         assign A1ADDR_15[CFG_ABITS-1:0] = A1ADDR;
@@ -65,6 +96,31 @@ module \$__QLF_FACTOR_BRAM36_TDP (CLK2, CLK3, A1ADDR, A1DATA, A1EN, B1ADDR, B1DA
 	assign RMODE_B2 = MODE_36;
 
 	assign SPLIT = 1'b0;
+	assign FLUSH1 = 1'b0;
+	assign FLUSH2 = 1'b0;
+	assign UPAE1 = 11'd10;
+	assign UPAF1 = 11'd10;
+	assign UPAE2 = 11'd10;
+	assign UPAF2 = 11'd10;
+	assign SYNC_FIFO1 = 1'b0;
+	assign SYNC_FIFO2 = 1'b0;
+	assign FMODE1 = 1'b0;
+	assign FMODE2 = 1'b0;
+	assign POWERDN1 = 1'b0;
+	assign POWERDN2 = 1'b0;
+	assign SLEEP1 = 1'b0;
+	assign SLEEP2 = 1'b0;
+	assign PROTECT1 = 1'b0;
+	assign PROTECT2 = 1'b0;
+	assign RAM_ID_i = 9'b0;
+
+	assign PL_INIT_i = 1'b0;
+	assign PL_ENA_i = 1'b0;
+	assign PL_REN_i = 1'b0;
+	assign PL_CLK_i = 1'b0;
+	assign PL_WEN_i = 2'b0;
+	assign PL_ADDR_i = 24'b0;
+	assign PL_DATA_i = 36'b0;
 
 	/*if (CFG_DBITS == 1) begin
 	  assign WRITEDATAWIDTHB = 3'b000;
@@ -89,14 +145,8 @@ module \$__QLF_FACTOR_BRAM36_TDP (CLK2, CLK3, A1ADDR, A1DATA, A1EN, B1ADDR, B1DA
 	TDP_BRAM36 #() _TECHMAP_REPLACE_ (
 		.WMODE_A1(WMODE_A1),
 		.WMODE_A2(WMODE_A2),
-		.WMODE_B1(WMODE_B1),
-		.WMODE_B2(WMODE_B2),
 		.RMODE_A1(RMODE_A1),
 		.RMODE_A2(RMODE_A2),
-		.RMODE_B1(RMODE_B1),
-		.RMODE_B2(RMODE_B2),
-
-		.SPLIT(SPLIT),
 
 		.WDATA_A1(18'h3FFFF),
 		.WDATA_A2(18'h3FFFF),
@@ -110,8 +160,14 @@ module \$__QLF_FACTOR_BRAM36_TDP (CLK2, CLK3, A1ADDR, A1DATA, A1EN, B1ADDR, B1DA
 		.REN_A2(A1EN),
 		.WEN_A1(1'b0),
 		.WEN_A2(1'b0),
-		.BE_A1(2'b0),
-		.BE_A2(2'b0),
+		.BE_A1({A1EN, A1EN}),
+		.BE_A2({A1EN, A1EN}),
+
+
+		.WMODE_B1(WMODE_B1),
+		.WMODE_B2(WMODE_B2),
+		.RMODE_B1(RMODE_B1),
+		.RMODE_B2(RMODE_B2),
 
 		.WDATA_B1(B1DATA[17:0]),
 		.WDATA_B2(B1DATA[35:18]),
@@ -123,10 +179,46 @@ module \$__QLF_FACTOR_BRAM36_TDP (CLK2, CLK3, A1ADDR, A1DATA, A1EN, B1ADDR, B1DA
 		.CLK_B2(CLK3),
 		.REN_B1(1'b0),
 		.REN_B2(1'b0),
-		.WEN_B1(1'b1),
-		.WEN_B2(1'b1),
+		.WEN_B1(B1EN[0]),
+		.WEN_B2(B1EN[0]),
 		.BE_B1(B1EN[1:0]),
 		.BE_B2(B1EN[3:2]),
+
+
+		.SPLIT(SPLIT),
+		.FLUSH1(FLUSH1),
+		.FLUSH2(FLUSH2),
+		.UPAE1(UPAE1),
+		.UPAF1(UPAF1),
+		.UPAE2(UPAE2),
+		.UPAF2(UPAF2),
+		.SYNC_FIFO1(SYNC_FIFO1),
+		.SYNC_FIFO2(SYNC_FIFO2),
+		.FMODE1(FMODE1),
+		.FMODE2(FMODE2),
+		.POWERDN1(POWERDN1),
+		.POWERDN2(POWERDN2),
+		.SLEEP1(SLEEP1),
+		.SLEEP2(SLEEP2),
+		.PROTECT1(PROTECT1),
+		.PROTECT2(PROTECT2),
+		.RAM_ID_i(RAM_ID_i),
+
+		.PL_INIT_i(PL_INIT_i),
+		.PL_ENA_i(PL_ENA_i),
+		.PL_WEN_i(PL_WEN_i),
+		.PL_REN_i(PL_REN_i),
+		.PL_CLK_i(PL_CLK_i),
+		.PL_ADDR_i(PL_ADDR_i),
+		.PL_DATA_i(PL_DATA_i),
+		.PL_INIT_o(PL_INIT_o),
+		.PL_ENA_o(PL_ENA_o),
+		.PL_WEN_o(PL_WEN_o),
+		.PL_REN_o(PL_REN_o),
+		.PL_CLK_o(PL_CLK_o),
+		.PL_ADDR_o(),
+		.PL_DATA_o(PL_DATA_o)
+
 	);
 endmodule
 
