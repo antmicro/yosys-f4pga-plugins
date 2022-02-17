@@ -15,6 +15,13 @@ module \$__QLF_FACTOR_BRAM36_TDP (CLK2, CLK3, A1ADDR, A1DATA, A1EN, B1ADDR, B1DA
 	parameter CLKPOL3 = 1;
 	parameter [36863:0] INIT = 36864'bx;
 
+	localparam MODE_36  = 3'b111;	// 36 or 32-bit
+	localparam MODE_18  = 3'b110;	// 18 or 16-bit
+	localparam MODE_9   = 3'b101;	// 9 or 8-bit
+	localparam MODE_4   = 3'b100;	// 4-bit
+	localparam MODE_2   = 3'b010;	// 32-bit
+	localparam MODE_1   = 3'b001;	// 32-bit
+
 	input CLK2;
 	input CLK3;
 
@@ -31,6 +38,15 @@ module \$__QLF_FACTOR_BRAM36_TDP (CLK2, CLK3, A1ADDR, A1DATA, A1EN, B1ADDR, B1DA
 
 	wire [35:0] DOBDO;
 
+	wire SPLIT;
+	wire [2:0] WMODE_A1;
+	wire [2:0] WMODE_A2;
+	wire [2:0] WMODE_B1;
+	wire [2:0] WMODE_B2;
+	wire [2:0] RMODE_A1;
+	wire [2:0] RMODE_A2;
+	wire [2:0] RMODE_B1;
+	wire [2:0] RMODE_B2;
 	//wire [2:0] WRITEDATAWIDTHB;
 	//wire [2:0] READDATAWIDTHA;
 
@@ -38,6 +54,17 @@ module \$__QLF_FACTOR_BRAM36_TDP (CLK2, CLK3, A1ADDR, A1DATA, A1EN, B1ADDR, B1DA
         assign A1ADDR_15[CFG_ABITS-1:0] = A1ADDR;
         assign B1ADDR_15[14:CFG_ABITS]  = 0;
         assign B1ADDR_15[CFG_ABITS-1:0] = B1ADDR;
+
+	assign WMODE_A1 = 3'b0;
+	assign WMODE_A2 = 3'b0;
+	assign WMODE_B1 = MODE_36;
+	assign WMODE_B2 = MODE_36;
+	assign RMODE_A1 = MODE_36;
+	assign RMODE_A2 = MODE_36;
+	assign RMODE_B1 = MODE_36;
+	assign RMODE_B2 = MODE_36;
+
+	assign SPLIT = 1'b0;
 
 	/*if (CFG_DBITS == 1) begin
 	  assign WRITEDATAWIDTHB = 3'b000;
@@ -60,16 +87,27 @@ module \$__QLF_FACTOR_BRAM36_TDP (CLK2, CLK3, A1ADDR, A1DATA, A1EN, B1ADDR, B1DA
 	end*/
 
 	TDP_BRAM36 #() _TECHMAP_REPLACE_ (
+		.WMODE_A1(WMODE_A1),
+		.WMODE_A2(WMODE_A2),
+		.WMODE_B1(WMODE_B1),
+		.WMODE_B2(WMODE_B2),
+		.RMODE_A1(RMODE_A1),
+		.RMODE_A2(RMODE_A2),
+		.RMODE_B1(RMODE_B1),
+		.RMODE_B2(RMODE_B2),
+
+		.SPLIT(SPLIT),
+
 		.WDATA_A1(18'h3FFFF),
 		.WDATA_A2(18'h3FFFF),
 		.RDATA_A1(A1DATA[17:0]),
 		.RDATA_A2(A1DATA[35:18]),
 		.ADDR_A1(A1ADDR_15),
-		//.ADDR_A2(),	# skipped intentionally
-		//.CLK_A1(),	# skipped intentionally
+		.ADDR_A2(A1ADDR_15),
+		.CLK_A1(CLK2),
 		.CLK_A2(CLK2),
 		.REN_A1(A1EN),
-		//.REN_A2(),
+		.REN_A2(A1EN),
 		.WEN_A1(1'b0),
 		.WEN_A2(1'b0),
 		.BE_A1(2'b0),
@@ -80,15 +118,15 @@ module \$__QLF_FACTOR_BRAM36_TDP (CLK2, CLK3, A1ADDR, A1DATA, A1EN, B1ADDR, B1DA
 		.RDATA_B1(DOBDO[17:0]),
 		.RDATA_B2(DOBDO[35:18]),
 		.ADDR_B1(B1ADDR_15),
-		//.ADDR_B2(),	# skipped intentionally
+		.ADDR_B2(B1ADDR_15),
 		.CLK_B1(CLK3),
-		//.CLK_B2(),	# skipped intentionally
+		.CLK_B2(CLK3),
 		.REN_B1(1'b0),
 		.REN_B2(1'b0),
 		.WEN_B1(1'b1),
 		.WEN_B2(1'b1),
-		.BE_B2(B1EN[3:2]),
 		.BE_B1(B1EN[1:0]),
+		.BE_B2(B1EN[3:2]),
 	);
 endmodule
 
