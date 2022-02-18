@@ -81,13 +81,48 @@ module \$__QLF_FACTOR_BRAM36_TDP (CLK2, CLK3, A1ADDR, A1DATA, A1EN, B1ADDR, B1DA
 	wire [2:0] RMODE_B1;
 	wire [2:0] RMODE_B2;
 
-        assign A1ADDR_15[14:CFG_ABITS]  = 0;
-        assign A1ADDR_15[CFG_ABITS-1:0] = A1ADDR;
-        assign B1ADDR_15[14:CFG_ABITS]  = 0;
-        assign B1ADDR_15[CFG_ABITS-1:0] = B1ADDR;
+	case (CFG_DBITS)
+		1: begin
+			assign A1ADDR_15 = A1ADDR;
+			assign B1ADDR_15 = B1ADDR;
+		end
 
-	assign WMODE_A1 = 3'b0;
-	assign WMODE_A2 = 3'b0;
+		2: begin
+			assign A1ADDR_15 = A1ADDR << 1;
+			assign B1ADDR_15 = B1ADDR << 1;
+		end
+
+		4: begin
+			assign A1ADDR_15 = A1ADDR << 2;
+			assign B1ADDR_15 = B1ADDR << 2;
+		end
+
+		8: begin
+			assign A1ADDR_15 = A1ADDR << 3;
+			assign B1ADDR_15 = B1ADDR << 3;
+		end
+
+		16: begin
+			assign A1ADDR_15 = A1ADDR << 4;
+			assign B1ADDR_15 = B1ADDR << 4;
+		end
+
+		32: begin
+			assign A1ADDR_15 = A1ADDR << 5;
+			assign B1ADDR_15 = B1ADDR << 5;
+		end
+		36: begin
+			assign A1ADDR_15 = A1ADDR << 5;
+			assign B1ADDR_15 = B1ADDR << 5;
+		end
+		default: begin
+			assign A1ADDR_15 = A1ADDR;
+			assign B1ADDR_15 = B1ADDR;
+		end
+	endcase
+
+	assign WMODE_A1 = MODE_36;
+	assign WMODE_A2 = MODE_36;
 	assign WMODE_B1 = MODE_36;
 	assign WMODE_B2 = MODE_36;
 	assign RMODE_A1 = MODE_36;
