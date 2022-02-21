@@ -91,8 +91,8 @@ module \$__QLF_FACTOR_BRAM36_TDP (CLK2, CLK3, A1ADDR, A1DATA, A1EN, B1ADDR, B1DA
 	wire [2:0] RMODE_B1;
 	wire [2:0] RMODE_B2;
 
-	assign A1ADDR_CMPL = {15-CFG_ABITS{1'bz}};
-	assign B1ADDR_CMPL = {15-CFG_ABITS{1'bz}};
+	assign A1ADDR_CMPL = {15-CFG_ABITS{1'b0}};
+	assign B1ADDR_CMPL = {15-CFG_ABITS{1'b0}};
 	assign A1DATA_CMPL = {36-CFG_DBITS{1'bz}};
 	assign B1DATA_CMPL = {36-CFG_DBITS{1'bz}};
 
@@ -125,6 +125,11 @@ module \$__QLF_FACTOR_BRAM36_TDP (CLK2, CLK3, A1ADDR, A1DATA, A1EN, B1ADDR, B1DA
 		16: begin
 			assign A1ADDR_15 = A1ADDR_TOTAL << 4;
 			assign B1ADDR_15 = B1ADDR_TOTAL << 4;
+		end
+
+		18: begin
+			assign A1ADDR_15 = A1ADDR_TOTAL << 5;
+			assign B1ADDR_15 = B1ADDR_TOTAL << 5;
 		end
 
 		32: begin
