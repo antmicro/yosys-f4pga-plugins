@@ -103,60 +103,132 @@ module \$__QLF_FACTOR_BRAM36_TDP (CLK2, CLK3, A1ADDR, A1DATA, A1EN, B1ADDR, B1DA
 		1: begin
 			assign A1ADDR_15 = A1ADDR_TOTAL;
 			assign B1ADDR_15 = B1ADDR_TOTAL;
+			assign WMODE_A1 = MODE_1;
+			assign WMODE_A2 = MODE_1;
+			assign WMODE_B1 = MODE_1;
+			assign WMODE_B2 = MODE_1;
+			assign RMODE_A1 = MODE_1;
+			assign RMODE_A2 = MODE_1;
+			assign RMODE_B1 = MODE_1;
+			assign RMODE_B2 = MODE_1;
 		end
 
 		2: begin
 			assign A1ADDR_15 = A1ADDR_TOTAL << 1;
 			assign B1ADDR_15 = B1ADDR_TOTAL << 1;
+			assign WMODE_A1 = MODE_2;
+			assign WMODE_A2 = MODE_2;
+			assign WMODE_B1 = MODE_2;
+			assign WMODE_B2 = MODE_2;
+			assign RMODE_A1 = MODE_2;
+			assign RMODE_A2 = MODE_2;
+			assign RMODE_B1 = MODE_2;
+			assign RMODE_B2 = MODE_2;
 		end
 
 		4: begin
 			assign A1ADDR_15 = A1ADDR_TOTAL << 5;
 			assign B1ADDR_15 = B1ADDR_TOTAL << 5;
+			assign WMODE_A1 = MODE_4;
+			assign WMODE_A2 = MODE_4;
+			assign WMODE_B1 = MODE_4;
+			assign WMODE_B2 = MODE_4;
+			assign RMODE_A1 = MODE_4;
+			assign RMODE_A2 = MODE_4;
+			assign RMODE_B1 = MODE_4;
+			assign RMODE_B2 = MODE_4;
 		end
 
 		8: begin
 			assign A1ADDR_15 = A1ADDR_TOTAL << 3;
 			assign B1ADDR_15 = B1ADDR_TOTAL << 3;
+			assign WMODE_A1 = MODE_9;
+			assign WMODE_A2 = MODE_9;
+			assign WMODE_B1 = MODE_9;
+			assign WMODE_B2 = MODE_9;
+			assign RMODE_A1 = MODE_9;
+			assign RMODE_A2 = MODE_9;
+			assign RMODE_B1 = MODE_9;
+			assign RMODE_B2 = MODE_9;
 		end
 
 		9: begin
 			assign A1ADDR_15 = A1ADDR_TOTAL << 5;
 			assign B1ADDR_15 = B1ADDR_TOTAL << 5;
+			assign WMODE_A1 = MODE_9;
+			assign WMODE_A2 = MODE_9;
+			assign WMODE_B1 = MODE_9;
+			assign WMODE_B2 = MODE_9;
+			assign RMODE_A1 = MODE_9;
+			assign RMODE_A2 = MODE_9;
+			assign RMODE_B1 = MODE_9;
+			assign RMODE_B2 = MODE_9;
 		end
 
 		16: begin
 			assign A1ADDR_15 = A1ADDR_TOTAL << 4;
 			assign B1ADDR_15 = B1ADDR_TOTAL << 4;
+			assign WMODE_A1 = MODE_18;
+			assign WMODE_A2 = MODE_18;
+			assign WMODE_B1 = MODE_18;
+			assign WMODE_B2 = MODE_18;
+			assign RMODE_A1 = MODE_18;
+			assign RMODE_A2 = MODE_18;
+			assign RMODE_B1 = MODE_18;
+			assign RMODE_B2 = MODE_18;
 		end
 
 		18: begin
-			assign A1ADDR_15 = A1ADDR_TOTAL << 5;
-			assign B1ADDR_15 = B1ADDR_TOTAL << 5;
+			assign A1ADDR_15 = A1ADDR_TOTAL << 4;
+			assign B1ADDR_15 = B1ADDR_TOTAL << 4;
+			assign WMODE_A1 = MODE_18;
+			assign WMODE_A2 = MODE_18;
+			assign WMODE_B1 = MODE_18;
+			assign WMODE_B2 = MODE_18;
+			assign RMODE_A1 = MODE_18;
+			assign RMODE_A2 = MODE_18;
+			assign RMODE_B1 = MODE_18;
+			assign RMODE_B2 = MODE_18;
 		end
 
 		32: begin
 			assign A1ADDR_15 = A1ADDR_TOTAL << 5;
 			assign B1ADDR_15 = B1ADDR_TOTAL << 5;
+			assign WMODE_A1 = MODE_36;
+			assign WMODE_A2 = MODE_36;
+			assign WMODE_B1 = MODE_36;
+			assign WMODE_B2 = MODE_36;
+			assign RMODE_A1 = MODE_36;
+			assign RMODE_A2 = MODE_36;
+			assign RMODE_B1 = MODE_36;
+			assign RMODE_B2 = MODE_36;
 		end
 		36: begin
 			assign A1ADDR_15 = A1ADDR_TOTAL << 5;
 			assign B1ADDR_15 = B1ADDR_TOTAL << 5;
+			assign WMODE_A1 = MODE_36;
+			assign WMODE_A2 = MODE_36;
+			assign WMODE_B1 = MODE_36;
+			assign WMODE_B2 = MODE_36;
+			assign RMODE_A1 = MODE_36;
+			assign RMODE_A2 = MODE_36;
+			assign RMODE_B1 = MODE_36;
+			assign RMODE_B2 = MODE_36;
 		end
 		default: begin
 			assign A1ADDR_15 = A1ADDR_TOTAL;
 			assign B1ADDR_15 = B1ADDR_TOTAL;
+			assign WMODE_A1 = MODE_36;
+			assign WMODE_A2 = MODE_36;
+			assign WMODE_B1 = MODE_36;
+			assign WMODE_B2 = MODE_36;
+			assign RMODE_A1 = MODE_36;
+			assign RMODE_A2 = MODE_36;
+			assign RMODE_B1 = MODE_36;
+			assign RMODE_B2 = MODE_36;
 		end
 	endcase
 
-	assign WMODE_A1 = MODE_36;
-	assign WMODE_A2 = MODE_36;
-	assign WMODE_B1 = MODE_36;
-	assign WMODE_B2 = MODE_36;
-	assign RMODE_A1 = MODE_36;
-	assign RMODE_A2 = MODE_36;
-	assign RMODE_B1 = MODE_36;
-	assign RMODE_B2 = MODE_36;
 
 	assign SPLIT = 1'b0;
 	assign FLUSH1 = 1'b0;
