@@ -257,27 +257,6 @@ module \$__QLF_FACTOR_BRAM36_TDP (CLK2, CLK3, A1ADDR, A1DATA, A1EN, B1ADDR, B1DA
 	assign PL_ADDR_i = 24'b0;
 	assign PL_DATA_i = 36'b0;
 
-	/*if (CFG_DBITS == 1) begin
-	  assign WRITEDATAWIDTHB = 3'b000;
-	  assign READDATAWIDTHA = 3'b000;
-	end else if (CFG_DBITS == 2) begin
-          assign WRITEDATAWIDTHB = 3'b001;
-          assign READDATAWIDTHA = 3'b001;
-        end else if (CFG_DBITS > 2 && CFG_DBITS <= 4) begin
-          assign WRITEDATAWIDTHB = 3'b010;
-          assign READDATAWIDTHA = 3'b010;
-        end else if (CFG_DBITS > 4 && CFG_DBITS <= 9) begin
-          assign WRITEDATAWIDTHB = 3'b011;
-          assign READDATAWIDTHA = 3'b011;
-        end else if (CFG_DBITS > 9 && CFG_DBITS <= 18) begin
-          assign WRITEDATAWIDTHB = 3'b100;
-          assign READDATAWIDTHA = 3'b100;
-        end else if (CFG_DBITS > 18 && CFG_DBITS <= 36) begin
-          assign WRITEDATAWIDTHB = 3'b101;
-          assign READDATAWIDTHA = 3'b101;
-	end*/
-
-	//generate if (CFG_DBITS > 9) begin
 	TDP_BRAM36 #() _TECHMAP_REPLACE_ (
 		.WMODE_A1_i(WMODE_A1),
 		.WMODE_A2_i(WMODE_A2),
@@ -356,86 +335,6 @@ module \$__QLF_FACTOR_BRAM36_TDP (CLK2, CLK3, A1ADDR, A1DATA, A1EN, B1ADDR, B1DA
 		.PL_DATA_o(PL_DATA_o)
 
 	);
-	//end else begin
-	//TDP_BRAM36 #() _TECHMAP_REPLACE_ (
-		//.WMODE_A1(WMODE_A1),
-		//.WMODE_A2(WMODE_A2),
-		//.RMODE_A1(RMODE_A1),
-		//.RMODE_A2(RMODE_A2),
-
-		//.WDATA_A1(18'h3FFFF),
-		//.WDATA_A2(18'h3FFFF),
-		//.RDATA_A1(A1DATA_TOTAL[17:0]),
-		//.RDATA_A2(A1DATA_TOTAL[35:18]),
-		//.ADDR_A1(A1ADDR_15),
-		//.ADDR_A2(A1ADDR_15),
-		//.CLK_A1(CLK2),
-		//.CLK_A2(CLK2),
-		//.REN_A1(A1EN),
-		//.REN_A2(A1EN),
-		//.WEN_A1(1'b0),
-		//.WEN_A2(1'b0),
-		//.BE_A1({A1EN, A1EN}),
-		//.BE_A2({A1EN, A1EN}),
-
-
-		//.WMODE_B1(WMODE_B1),
-		//.WMODE_B2(WMODE_B2),
-		//.RMODE_B1(RMODE_B1),
-		//.RMODE_B2(RMODE_B2),
-
-		//.WDATA_B1(B1DATA[17:0]),
-		//.WDATA_B2(B1DATA[35:18]),
-		//.RDATA_B1(DOBDO[17:0]),
-		//.RDATA_B2(DOBDO[35:18]),
-		//.ADDR_B1(B1ADDR_15),
-		//.ADDR_B2(B1ADDR_15),
-		//.CLK_B1(CLK3),
-		//.CLK_B2(CLK3),
-		//.REN_B1(1'b0),
-		//.REN_B2(1'b0),
-		//.WEN_B1(B1EN[0]),
-		//.WEN_B2(B1EN[0]),
-		//.BE_B1({B1EN[0], B1EN[0]}),
-		//.BE_B2({B1EN[0], B1EN[0]}),
-
-
-		//.SPLIT(SPLIT),
-		//.FLUSH1(FLUSH1),
-		//.FLUSH2(FLUSH2),
-		//.UPAE1(UPAE1),
-		//.UPAF1(UPAF1),
-		//.UPAE2(UPAE2),
-		//.UPAF2(UPAF2),
-		//.SYNC_FIFO1(SYNC_FIFO1),
-		//.SYNC_FIFO2(SYNC_FIFO2),
-		//.FMODE1(FMODE1),
-		//.FMODE2(FMODE2),
-		//.POWERDN1(POWERDN1),
-		//.POWERDN2(POWERDN2),
-		//.SLEEP1(SLEEP1),
-		//.SLEEP2(SLEEP2),
-		//.PROTECT1(PROTECT1),
-		//.PROTECT2(PROTECT2),
-		//.RAM_ID_i(RAM_ID_i),
-
-		//.PL_INIT_i(PL_INIT_i),
-		//.PL_ENA_i(PL_ENA_i),
-		//.PL_WEN_i(PL_WEN_i),
-		//.PL_REN_i(PL_REN_i),
-		//.PL_CLK_i(PL_CLK_i),
-		//.PL_ADDR_i(PL_ADDR_i),
-		//.PL_DATA_i(PL_DATA_i),
-		//.PL_INIT_o(PL_INIT_o),
-		//.PL_ENA_o(PL_ENA_o),
-		//.PL_WEN_o(PL_WEN_o),
-		//.PL_REN_o(PL_REN_o),
-		//.PL_CLK_o(PL_CLK_o),
-		//.PL_ADDR_o(),
-		//.PL_DATA_o(PL_DATA_o)
-
-	//);
-	//end endgenerate
 endmodule
 
 // ------------------------------------------------------------------------
