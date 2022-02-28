@@ -1,5 +1,5 @@
 
-bram $__QLF_FACTOR_BRAM36_TDP
+bram $__QLF_FACTOR_BRAM36_SDP
   init 1
   abits 10     @a10d36
   dbits 36     @a10d36
@@ -25,9 +25,10 @@ bram $__QLF_FACTOR_BRAM36_TDP
 endbram
 
 
-match $__QLF_FACTOR_BRAM36_TDP
+match $__QLF_FACTOR_BRAM36_SDP
   max dbits 36
   max abits 15
+  min efficiency 2
   shuffle_enable B
   make_transp
 endmatch

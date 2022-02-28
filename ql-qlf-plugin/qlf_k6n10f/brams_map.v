@@ -6,7 +6,7 @@
 //
 // SPDX-License-Identifier:ISC
 
-module \$__QLF_FACTOR_BRAM36_TDP (CLK2, CLK3, A1ADDR, A1DATA, A1EN, B1ADDR, B1DATA, B1EN);
+module \$__QLF_FACTOR_BRAM36_SDP (CLK2, CLK3, A1ADDR, A1DATA, A1EN, B1ADDR, B1DATA, B1EN);
 	parameter CFG_ABITS = 10;
 	parameter CFG_DBITS = 36;
 	parameter CFG_ENABLE_B = 4;
