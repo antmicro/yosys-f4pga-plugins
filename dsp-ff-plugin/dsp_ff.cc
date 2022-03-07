@@ -129,7 +129,9 @@ struct DspFF : public Pass {
             /// A list of parameters that must match for all flip-flops
             std::vector<RTLIL::IdString> matching;
             /// A dict of parameter values that must match for a flip-flop
-            dict<RTLIL::IdString, RTLIL::Const> required;
+            dict<RTLIL::IdString, RTLIL::Const> req_params;
+            /// A dict of port connections (to consts) that must match for a flip-flop
+            dict<RTLIL::IdString, RTLIL::Const> req_conns;
             /// A dict of parameters to be set in the DSP cell after integration
             dict<RTLIL::IdString, RTLIL::Const> set;
             /// A dict of parameters to be mapped to the DSP cell after integration
@@ -514,7 +516,7 @@ struct DspFF : public Pass {
             }
 
             // Parameters that must be set to certain values
-            else if (fields[0] == "require") {
+            else if (fields[0] == "req_param") {
                 if (fields.size() < 2) {
                     log_error(" syntax error: '%s'\n", line.c_str());
                 }
@@ -524,7 +526,22 @@ struct DspFF : public Pass {
 
                 const auto vec = parseNameValue(fields);
                 for (const auto &it : vec) {
-                    flopTypes.back().params.required.insert(std::make_pair(RTLIL::escape_id(it.first), RTLIL::Const(it.second)));
+                    flopTypes.back().params.req_params.insert(std::make_pair(RTLIL::escape_id(it.first), RTLIL::Const(it.second)));
+                }
+            }
+            // Connections that must be present
+            else if (fields[0] == "req_conn") {
+                if (fields.size() < 2) {
+                    log_error(" syntax error: '%s'\n", line.c_str());
+                }
+                if (tok.size() == 0 || tok.back() != "ff") {
+                    log_error(" unexpected keyword '%s'\n", fields[0].c_str());
+                }
+
+                const auto vec = parseNameValue(fields);
+                for (const auto &it : vec) {
+                    int val = std::stoi(it.second);
+                    flopTypes.back().params.req_conns.insert(std::make_pair(RTLIL::escape_id(it.first), RTLIL::Const(val, 1)));
                 }
             }
             // Parameters that has to match for a flip-flop
@@ -593,7 +610,8 @@ struct DspFF : public Pass {
 
                 const auto vec = parseNameValue(fields);
                 for (const auto &it : vec) {
-                    registerType.connect.insert(std::make_pair(RTLIL::escape_id(it.first), RTLIL::Const(it.second)));
+                    int val = std::stoi(it.second);
+                    registerType.connect.insert(std::make_pair(RTLIL::escape_id(it.first), RTLIL::Const(val, 1)));
                 }
             }
 
@@ -640,7 +658,7 @@ struct DspFF : public Pass {
                     log("  %s.%s%s\n", dsp.name.c_str(), port.name.c_str(), range.c_str());
 
                     for (const auto &it : port.assoc) {
-                        log("   %.3s: %s\n", it.first.c_str(), !it.second.first.empty() ? it.second.first.c_str() : "<none>");
+                        log("   %-4s: %s\n", it.first.c_str(), !it.second.first.empty() ? it.second.first.c_str() : "<none>");
                     }
 
                     if (!reg.params.set.empty()) {
@@ -672,13 +690,19 @@ struct DspFF : public Pass {
             log(" %s\n", ff.name.c_str());
 
             for (const auto &it : ff.ports) {
-                log("  %.3s: %s\n", it.first.c_str(), !it.second.empty() ? it.second.c_str() : "<none>");
+                log("  %-4s: %s\n", it.first.c_str(), !it.second.empty() ? it.second.c_str() : "<none>");
             }
 
-            if (!ff.params.required.empty()) {
+            if (!ff.params.req_params.empty()) {
                 log("  required params:\n");
-                for (const auto &it : ff.params.required) {
+                for (const auto &it : ff.params.req_params) {
                     log("   %s=%s\n", it.first.c_str(), it.second.decode_string().c_str());
+                }
+            }
+            if (!ff.params.req_conns.empty()) {
+                log("  required connections:\n");
+                for (const auto &it : ff.params.req_conns) {
+                    log("   %s=%s\n", it.first.c_str(), it.second.as_string().c_str());
                 }
             }
             if (!ff.params.matching.empty()) {
@@ -758,8 +782,9 @@ struct DspFF : public Pass {
         log("    d   <data input>\n");
         log("    q   <data output>\n");
         log("\n");
-        log("    require <param>=<value> [<param>=<value> ...]\n");
-        log("    match   <param> [<param> ...]\n");
+        log("    req_param <param>=<value> [<param>=<value> ...]\n");
+        log("    req_conn  <port>=<const> [<port>=<const> ...]\n");
+        log("    match     <param> [<param> ...]\n");
         log("\n");
         log("    set <param>=<value> [<param>=<value> ...]\n");
         log("    map <dsp_param>=<ff_param> [<dsp_param>=<ff_param> ...]\n");
@@ -786,10 +811,14 @@ struct DspFF : public Pass {
         log("cell. Inside this section 'clk', 'rst', 'ena', 'd' and 'q' define names of\n");
         log("clock, reset, enable, data in and data out ports of the flip-flop respectively.\n");
         log("\n");
-        log("The 'require' statement defines parameter(s) that must have specific value\n");
+        log("The 'req_param' statement defines parameter(s) that must have specific value\n");
         log("for a flip-flop to be considered for integration. The 'match' statement\n");
         log("lists names of flip-flop parameters that must match on all flip-flops connected\n");
         log("to a single DSP data port.\n");
+        log("\n");
+        log("The 'req_conn' statement works similarly to 'req_param' but it targets connections\n");
+        log("of flip-flop ports instead of parameters. Only constant values (0 and 1) can\n");
+        log("be specified here.\n");
         log("\n");
         log("The 'set' and 'map' statements serve the same function as in the DSP port\n");
         log("section but here they may differ depending on the flip-flop type being\n");
@@ -886,11 +915,30 @@ struct DspFF : public Pass {
         }
 
         // Check if required parameters are set as they should be
-        for (const auto &it : flopType.params.required) {
+        for (const auto &it : flopType.params.req_params) {
+
+            if (!a_Cell->hasParam(it.first)) {
+                continue;
+            }
+
             const auto curr = a_Cell->getParam(it.first);
             if (curr != it.second) {
                 log_debug("\n   param '%s' mismatch ('%s' instead of '%s')", it.first.c_str(), curr.decode_string().c_str(),
                           it.second.decode_string().c_str());
+                isOk = false;
+            }
+        }
+
+        // Check if required port are connected as they should be
+        for (const auto &it : flopType.params.req_conns) {
+
+            if (!a_Cell->hasPort(it.first)) {
+                continue;
+            }
+
+            auto curr = m_SigMap(a_Cell->getPort(it.first));
+            if (curr != it.second) {
+                log_debug("\n   port '%s' not connected to '%s'", it.first.c_str(), it.second.as_string().c_str());
                 isOk = false;
             }
         }
@@ -1260,6 +1308,10 @@ struct DspFF : public Pass {
             for (const auto &it : port.assoc) {
                 const auto &key = it.first;
                 const auto &port = it.second.first;
+
+                if (port == IdString()) {
+                    continue;
+                }
 
                 auto conn = RTLIL::SigBit(RTLIL::SigChunk(it.second.second));
                 if (flopData.conns.count(key)) {
