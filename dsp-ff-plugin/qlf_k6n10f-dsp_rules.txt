@@ -1,0 +1,71 @@
+# Copyright (C) 2020-2022  The SymbiFlow Authors.
+#
+# Use of this source code is governed by a ISC-style
+# license that can be found in the LICENSE file or at
+# https://opensource.org/licenses/ISC
+#
+# SPDX-License-Identifier:ISC
+
+dsp QL_DSP2
+  port a unsigned_a b unsigned_b acc_fir feedback load_acc subtract shift_right round saturate
+    clk clk 0
+    rst reset 1
+    con register_inputs=1
+  endport
+enddsp
+
+ff dff
+  clk C
+  d   D
+  q   Q
+endff
+
+ff dffr
+  clk C
+  rst R
+  d   D
+  q   Q
+endff
+
+ff dffre
+  clk C
+  rst R
+  d   D
+  q   Q
+
+  req_conn  E=1
+endff
+
+ff dffs
+  clk C
+  d   D
+  q   Q
+
+  req_conn  S=1
+endff
+
+ff dffse
+  clk C
+  d   D
+  q   Q
+
+  req_conn  E=1 S=1
+endff
+
+ff dffsre
+  clk C
+  rst R
+  d   D
+  q   Q
+
+  req_conn  E=1 S=1
+endff
+
+ff dffsr
+  clk C
+  rst R
+  d   D
+  q   Q
+
+  req_conn  S=1
+endff

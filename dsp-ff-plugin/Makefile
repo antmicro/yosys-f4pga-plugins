@@ -13,4 +13,4 @@ include ../Makefile_plugin.common
 
 install:
 	install -D nexus-dsp_rules.txt $(DATA_DIR)/nexus/dsp_rules.txt
-
+	install -D qlf_k6n10f-dsp_rules.txt $(DATA_DIR)/quicklogic/qlf_k6n10f/dsp_rules.txt
