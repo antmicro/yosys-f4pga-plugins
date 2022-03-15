@@ -14,6 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+`default_nettype wire
 module TDP18K_FIFO (
 	RMODE_A,
 	RMODE_B,
@@ -42,7 +43,6 @@ module TDP18K_FIFO (
 	FWM,
 	OVERRUN,
 	FLUSH,
-	RAM_ID,
 	FMODE,
 	PL_INIT,
 	PL_ENA,
@@ -51,8 +51,10 @@ module TDP18K_FIFO (
 	PL_CLK,
 	PL_ADDR,
 	PL_DATA_IN,
-	PL_DATA_OUT
+	PL_DATA_OUT,
+	RAM_ID
 );
+
 	parameter SYNC_FIFO = 1'b0;
 	parameter POWERDN = 1'b0;
 	parameter SLEEP = 1'b0;
@@ -89,7 +91,6 @@ module TDP18K_FIFO (
 	output wire FWM;
 	output wire OVERRUN;
 	input wire FLUSH;
-	input wire [15:0] RAM_ID;
 	input wire FMODE;
 	input PL_INIT;
 	input PL_ENA;
@@ -99,6 +100,7 @@ module TDP18K_FIFO (
 	input [31:0] PL_ADDR;
 	input [17:0] PL_DATA_IN;
 	output reg [17:0] PL_DATA_OUT;
+	input [15:0] RAM_ID;
 	reg [17:0] wmsk_a;
 	reg [17:0] wmsk_b;
 	wire [8:0] addr_a;
@@ -133,7 +135,7 @@ module TDP18K_FIFO (
 	wire ram_wen_b;
 	wire cen_a;
 	wire cen_b;
-	localparam MODE_9 = 3'b101;
+	localparam MODE_9 = 3'b001;
 	always @(*) begin
 		fifo_rmode = (RMODE_B == MODE_9 ? 2'b10 : 2'b01);
 		fifo_wmode = (WMODE_A == MODE_9 ? 2'b10 : 2'b01);
@@ -173,7 +175,8 @@ module TDP18K_FIFO (
 	);
 	fifo_ctl #(
 		.ADDR_WIDTH(11),
-		.FIFO_WIDTH(2)
+		.FIFO_WIDTH(2),
+		.DEPTH(6)
 	) fifo_ctl(
 		.rclk(smux_clk_b),
 		.rst_R_n(~FLUSH),
@@ -181,7 +184,6 @@ module TDP18K_FIFO (
 		.rst_W_n(~FLUSH),
 		.ren(REN_B),
 		.wen(ram_wen_a),
-		.depth(3'b000),
 		.sync(SYNC_FIFO),
 		.rmode(fifo_rmode),
 		.wmode(fifo_wmode),
@@ -198,9 +200,9 @@ module TDP18K_FIFO (
 		else
 			PL_DATA_OUT = PL_DATA_IN;
 	end
-	localparam MODE_1 = 3'b001;
-	localparam MODE_18 = 3'b110;
-	localparam MODE_2 = 3'b010;
+	localparam MODE_1 = 3'b101;
+	localparam MODE_18 = 3'b010;
+	localparam MODE_2 = 3'b110;
 	localparam MODE_4 = 3'b100;
 	always @(*) begin : WDATA_MODE_SEL
 		if (ram_wen_a == 1) begin
@@ -216,7 +218,7 @@ module TDP18K_FIFO (
 						{wmsk_a[16], wmsk_a[7:0]} = (FMODE ? 9'h000 : (BE_A[0] ? 9'h000 : 9'h1ff));
 					end
 					MODE_9: begin
-						aligned_wdata_a = {{2 {WDATA_A[8]}}, {2 {WDATA_A[7:0]}}};
+						aligned_wdata_a = {{2 {WDATA_A[16]}}, {2 {WDATA_A[7:0]}}};
 						{wmsk_a[17], wmsk_a[15:8]} = (ram_waddr_a[3] ? 9'h000 : 9'h1ff);
 						{wmsk_a[16], wmsk_a[7:0]} = (ram_waddr_a[3] ? 9'h1ff : 9'h000);
 					end
@@ -260,7 +262,7 @@ module TDP18K_FIFO (
 					{wmsk_b[16], wmsk_b[7:0]} = (BE_B[0] ? 9'h000 : 9'h1ff);
 				end
 				MODE_9: begin
-					aligned_wdata_b = {{2 {WDATA_B[8]}}, {2 {WDATA_B[7:0]}}};
+					aligned_wdata_b = {{2 {WDATA_B[16]}}, {2 {WDATA_B[7:0]}}};
 					{wmsk_b[17], wmsk_b[15:8]} = (ram_waddr_b[3] ? 9'h000 : 9'h1ff);
 					{wmsk_b[16], wmsk_b[7:0]} = (ram_waddr_b[3] ? 9'h1ff : 9'h000);
 				end
@@ -301,8 +303,8 @@ module TDP18K_FIFO (
 			default: RDATA_A = 18'h00000;
 			MODE_18: RDATA_A = ram_rdata_a;
 			MODE_9: begin
-				RDATA_A[17:9] = 9'h000;
-				RDATA_A[8:0] = (ram_addr_a[3] ? {ram_rdata_a[17], ram_rdata_a[15:8]} : {ram_rdata_a[16], ram_rdata_a[7:0]});
+				{RDATA_A[17], RDATA_A[7:0]} = 9'h000;
+				{RDATA_A[16], RDATA_A[7:0]} = (ram_addr_a[3] ? {ram_rdata_a[17], ram_rdata_a[15:8]} : {ram_rdata_a[16], ram_rdata_a[7:0]});
 			end
 			MODE_4: begin
 				RDATA_A[17:4] = 14'h0000;
@@ -337,8 +339,8 @@ module TDP18K_FIFO (
 			default: RDATA_B = 18'h15566;
 			MODE_18: RDATA_B = ram_rdata_b;
 			MODE_9: begin
-				RDATA_B[17:9] = 1'sb1;
-				RDATA_B[8:0] = (ram_addr_b[3] ? {ram_rdata_b[17], ram_rdata_b[15:8]} : {ram_rdata_b[16], ram_rdata_b[7:0]});
+				{RDATA_B[17], RDATA_B[15:8]} = 9'b000000000;
+				{RDATA_B[16], RDATA_B[7:0]} = (ram_addr_b[3] ? {ram_rdata_b[17], ram_rdata_b[15:8]} : {ram_rdata_b[16], ram_rdata_b[7:0]});
 			end
 			MODE_4:
 				case (ram_addr_b[3:2])
@@ -358,6 +360,7 @@ module TDP18K_FIFO (
 					1: RDATA_B[1:0] = ram_rdata_b[3:2];
 					0: RDATA_B[1:0] = ram_rdata_b[1:0];
 				endcase
-			MODE_1: RDATA_B[0] = ram_rdata_b[ram_addr_b[3:0]];
+			MODE_1: RDATA_B[0] = ram_rdata_b[{1'b0, ram_addr_b[3:0]}];
 		endcase
 endmodule
+`default_nettype none

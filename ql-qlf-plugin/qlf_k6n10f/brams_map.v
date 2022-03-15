@@ -14,12 +14,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-`define MODE_36 3'b111	// 36 or 32-bit
-`define MODE_18 3'b110	// 18 or 16-bit
-`define MODE_9  3'b101	// 9 or 8-bit
+`define MODE_36 3'b011	// 36 or 32-bit
+`define MODE_18 3'b010	// 18 or 16-bit
+`define MODE_9  3'b001	// 9 or 8-bit
 `define MODE_4  3'b100	// 4-bit
-`define MODE_2  3'b010	// 32-bit
-`define MODE_1  3'b001	// 32-bit
+`define MODE_2  3'b110	// 32-bit
+`define MODE_1  3'b101	// 32-bit
 
 module \$__QLF_FACTOR_BRAM36_TDP (A1ADDR, A1DATA, A1EN, B1ADDR, B1DATA, B1EN, C1ADDR, C1DATA, C1EN, CLK1, CLK2, D1ADDR, D1DATA, D1EN);
 	parameter CFG_ABITS = 10;
@@ -195,7 +195,7 @@ module \$__QLF_FACTOR_BRAM36_TDP (A1ADDR, A1DATA, A1EN, B1ADDR, B1DATA, B1EN, C1
 	assign PL_ADDR_i = 24'b0;
 	assign PL_DATA_i = 36'b0;
 
-	TDP_BRAM36 #(
+	TDP36K #(
 		.UPAE1_i(12'd10),
 		.UPAF1_i(12'd10),
 		.UPAE2_i(12'd10),
@@ -212,6 +212,7 @@ module \$__QLF_FACTOR_BRAM36_TDP (A1ADDR, A1DATA, A1EN, B1ADDR, B1DATA, B1EN, C1
 		.PROTECT2_i(1'b0),
 		.SPLIT_i(1'b0)
 	) _TECHMAP_REPLACE_ (
+		.RESET_ni(1'b1),
 		.WDATA_A1_i(B1DATA[17:0]),
 		.WDATA_A2_i(B1DATA[35:18]),
 		.RDATA_A1_o(A1DATA_TOTAL[17:0]),
@@ -558,7 +559,7 @@ module \$__QLF_FACTOR_BRAM36_SDP (CLK2, CLK3, A1ADDR, A1DATA, A1EN, B1ADDR, B1DA
 	assign PL_ADDR_i = 24'b0;
 	assign PL_DATA_i = 36'b0;
 
-	TDP_BRAM36 #(
+	TDP36K #(
 		.UPAE1_i(12'd10),
 		.UPAF1_i(12'd10),
 		.UPAE2_i(12'd10),
@@ -575,6 +576,7 @@ module \$__QLF_FACTOR_BRAM36_SDP (CLK2, CLK3, A1ADDR, A1DATA, A1EN, B1ADDR, B1DA
 		.PROTECT2_i(1'b0),
 		.SPLIT_i(1'b0)
 	) _TECHMAP_REPLACE_ (
+		.RESET_ni(1'b1),
 		.WDATA_A1_i(18'h3FFFF),
 		.WDATA_A2_i(18'h3FFFF),
 		.RDATA_A1_o(A1DATA_TOTAL[17:0]),
