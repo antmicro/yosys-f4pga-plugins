@@ -12,7 +12,8 @@ TESTS = \
     nexus_fftypes \
     nexus_conn_conflict \
     nexus_conn_share \
-    nexus_param_conflict
+    nexus_param_conflict \
+    qlf_k6n10f_mult
 
 include $(shell pwd)/../../Makefile_test.common
 
@@ -22,3 +23,4 @@ nexus_fftypes_verify = true
 nexus_conn_conflict_verify = true
 nexus_conn_share_verify = true
 nexus_param_conflict_verify = true
+qlf_k6n10f_mult_verify = true
