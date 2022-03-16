@@ -65,21 +65,21 @@ module fifo_ctl (
 	assign smux_pushtopop = (sync ? pushtopop0 : pushtopop2);
 	always @(posedge rclk or negedge rst_R_n)
 		if (~rst_R_n) begin
-			pushtopop1 <= #(1) 'h0;
-			pushtopop2 <= #(1) 'h0;
+			pushtopop1 <= 'h0;
+			pushtopop2 <= 'h0;
 		end
 		else begin
-			pushtopop1 = #(1) pushtopop0;
-			pushtopop2 = #(1) pushtopop1;
+			pushtopop1 = pushtopop0;
+			pushtopop2 = pushtopop1;
 		end
 	always @(posedge wclk or negedge rst_W_n)
 		if (~rst_W_n) begin
-			poptopush1 <= #(1) 'h0;
-			poptopush2 <= #(1) 'h0;
+			poptopush1 <= 'h0;
+			poptopush2 <= 'h0;
 		end
 		else begin
-			poptopush1 <= #(1) poptopush0;
-			poptopush2 <= #(1) poptopush1;
+			poptopush1 <= poptopush0;
+			poptopush2 <= poptopush1;
 		end
 	fifo_push #(
 		.ADDR_WIDTH(ADDR_WIDTH),
@@ -380,36 +380,36 @@ module fifo_push (
 			gcout_next = {ADDR_PLUS_ONE {1'b0}};
 	always @(posedge wclk or negedge rst_n)
 		if (~rst_n) begin
-			full <= #(1) 1'b0;
-			fmo <= #(1) 1'b0;
-			paf <= #(1) 1'b0;
-			raddr <= #(1) {ADDR_PLUS_ONE {1'b0}};
+			full <= 1'b0;
+			fmo <= 1'b0;
+			paf <= 1'b0;
+			raddr <= {ADDR_PLUS_ONE {1'b0}};
 		end
 		else begin
-			full <= #(1) full_next;
-			fmo <= #(1) fmo_next;
-			paf <= #(1) paf_next;
+			full <= full_next;
+			fmo <= fmo_next;
+			paf <= paf_next;
 			case (gmode)
-				0: raddr <= #(1) raddr_next & {{ADDR_WIDTH - 1 {1'b1}}, 2'b00};
-				1: raddr <= #(1) raddr_next & {{ADDR_WIDTH {1'b1}}, 1'b0};
-				2: raddr <= #(1) raddr_next & {ADDR_WIDTH + 1 {1'b1}};
-				3: raddr <= #(1) 12'h000;
+				0: raddr <= raddr_next & {{ADDR_WIDTH - 1 {1'b1}}, 2'b00};
+				1: raddr <= raddr_next & {{ADDR_WIDTH {1'b1}}, 1'b0};
+				2: raddr <= raddr_next & {ADDR_WIDTH + 1 {1'b1}};
+				3: raddr <= 12'h000;
 			endcase
 		end
 	assign overflow_next = full & wen;
 	always @(posedge wclk or negedge rst_n)
 		if (~rst_n)
-			overflow <= #(1) 1'b0;
+			overflow <= 1'b0;
 		else if (wen == 1'b1)
-			overflow <= #(1) overflow_next;
+			overflow <= overflow_next;
 	always @(posedge wclk or negedge rst_n)
 		if (~rst_n) begin
-			waddr <= #(1) {ADDR_WIDTH + 1 {1'b0}};
-			gcout_reg <= #(1) {ADDR_WIDTH + 1 {1'b0}};
+			waddr <= {ADDR_WIDTH + 1 {1'b0}};
+			gcout_reg <= {ADDR_WIDTH + 1 {1'b0}};
 		end
 		else if (wen == 1'b1) begin
-			waddr <= #(1) waddr_next;
-			gcout_reg <= #(1) gcout_next;
+			waddr <= waddr_next;
+			gcout_reg <= gcout_next;
 		end
 	assign gcout = gcout_reg;
 	generate
@@ -541,14 +541,14 @@ module fifo_pop (
 	assign pae_next = (ren_in & !empty ? q1 : q2);
 	always @(posedge rclk or negedge rst_n)
 		if (~rst_n) begin
-			empty <= #(1) 1'b1;
-			pae <= #(1) 1'b1;
-			epo <= #(1) 1'b0;
+			empty <= 1'b1;
+			pae <= 1'b1;
+			epo <= 1'b0;
 		end
 		else begin
-			empty <= #(1) empty_next;
-			pae <= #(1) pae_next;
-			epo <= #(1) epo_next;
+			empty <= empty_next;
+			pae <= pae_next;
+			epo <= epo_next;
 		end
 	assign gc8out_next = (raddr_next >> 1) ^ raddr_next;
 	assign gc16out_next = (raddr_next >> 2) ^ (raddr_next >> 1);
@@ -565,20 +565,20 @@ module fifo_pop (
 			gcout_next = 'h0;
 	always @(posedge rclk or negedge rst_n)
 		if (~rst_n)
-			waddr <= #(1) 12'h000;
+			waddr <= 12'h000;
 		else
-			waddr <= #(1) waddr_next;
+			waddr <= waddr_next;
 	always @(posedge rclk or negedge rst_n)
 		if (~rst_n) begin
-			underflow <= #(1) 1'b0;
-			bwl_sel <= #(1) 2'h0;
-			gcout_reg <= #(1) 12'h000;
+			underflow <= 1'b0;
+			bwl_sel <= 2'h0;
+			gcout_reg <= 12'h000;
 		end
 		else if (ren_in) begin
-			underflow <= #(1) empty;
+			underflow <= empty;
 			if (!empty) begin
-				bwl_sel <= #(1) raddr_next[1:0];
-				gcout_reg <= #(1) gcout_next;
+				bwl_sel <= raddr_next[1:0];
+				gcout_reg <= gcout_next;
 			end
 		end
 	generate
@@ -597,16 +597,16 @@ module fifo_pop (
 	assign raddr_next = raddr + (rmode == 2'h0 ? 'h4 : (rmode == 2'h1 ? 'h2 : 'h1));
 	always @(posedge rclk or negedge rst_n)
 		if (~rst_n)
-			ff_raddr <= #(1) 1'sb0;
+			ff_raddr <= 1'sb0;
 		else if (empty & ~empty_next)
-			ff_raddr <= #(1) raddr_next[ADDR_WIDTH - 1:0];
+			ff_raddr <= raddr_next[ADDR_WIDTH - 1:0];
 		else if ((ren_in & !empty) & ~empty_next)
-			ff_raddr <= #(1) ff_raddr_next;
+			ff_raddr <= ff_raddr_next;
 	always @(posedge rclk or negedge rst_n)
 		if (~rst_n)
-			raddr <= #(1) 12'h000;
+			raddr <= 12'h000;
 		else if (ren_in & !empty)
-			raddr <= #(1) raddr_next;
+			raddr <= raddr_next;
 	always @(*)
 		case (FIFO_WIDTH)
 			3'h2: out_raddr = {ff_raddr[ADDR_WIDTH - 1:1], bwl_sel[0]};
