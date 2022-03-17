@@ -12,6 +12,11 @@ dsp QL_DSP2
     rst reset 1
     con register_inputs=1
   endport
+  port z
+    clk clk 0
+    rst reset 1
+    con output_select[2]=1
+  endport
 enddsp
 
 ff dff

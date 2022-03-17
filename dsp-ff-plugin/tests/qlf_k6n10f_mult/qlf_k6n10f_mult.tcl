@@ -41,3 +41,22 @@ yosys cd ${TOP}
 stat
 select -assert-count 1 t:QL_DSP2
 select -assert-count 1 t:*
+
+set TOP "mult_oreg"
+design -load read
+check_equiv ${TOP}
+design -load postopt
+yosys cd ${TOP}
+stat
+select -assert-count 1 t:QL_DSP2
+select -assert-count 1 t:*
+
+set TOP "mult_all"
+design -load read
+check_equiv ${TOP}
+design -load postopt
+yosys cd ${TOP}
+stat
+select -assert-count 1 t:QL_DSP2
+select -assert-count 1 t:*
+
