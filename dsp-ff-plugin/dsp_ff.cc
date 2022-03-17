@@ -162,8 +162,9 @@ struct DspFF : public Pass {
         } params;
 
         /// A list of ports to be connected to specific constants after flip-flop
-        /// integration.
-        dict<RTLIL::IdString, RTLIL::Const> connect;
+        /// integration. Specifies the port bit range and constant value to
+        /// connect to.
+        dict<RTLIL::IdString, std::tuple<int, int, RTLIL::Const>> connect;
 
         unsigned int hash() const
         {
@@ -266,24 +267,36 @@ struct DspFF : public Pass {
             return vec;
         };
 
-        // Parses port name as "<name>[<hi>:<lo>]" or just "<name>"
+        // Parses port name as "<name>[<hi>:<lo>]", "<name>[<bit>]"
+        // or just "<name>"
         auto parsePortName = [&](const std::string &str) {
-            const std::regex expr("^(.*)\\[([0-9]+):([0-9]+)\\]");
+            const std::regex expr_rng("^(.*)\\[([0-9]+):([0-9]+)\\]");
+            const std::regex expr_bit("^(.*)\\[([0-9]+)\\]");
             std::smatch match;
 
             std::tuple<std::string, int, int> data;
-            auto res = std::regex_match(str, match, expr);
+
+            auto res = std::regex_match(str, match, expr_rng);
             if (res) {
                 data = std::make_tuple(std::string(match[1]), std::stoi(match[2]), std::stoi(match[3]));
-
                 if ((std::get<2>(data) > std::get<1>(data)) || std::get<2>(data) < 0 || std::get<1>(data) < 0) {
                     log_error(" invalid port spec: '%s'\n", str.c_str());
                 }
-            } else {
-                data = std::make_tuple(str, -1, -1);
+
+                return data;
             }
 
-            return data;
+            res = std::regex_match(str, match, expr_bit);
+            if (res) {
+                data = std::make_tuple(std::string(match[1]), std::stoi(match[2]), std::stoi(match[2]));
+                if (std::get<1>(data) < 0 || std::get<2>(data) < 0) {
+                    log_error(" invalid port spec: '%s'\n", str.c_str());
+                }
+
+                return data;
+            }
+
+            return std::make_tuple(str, -1, -1);
         };
 
         std::ifstream file(a_FileName);
@@ -610,8 +623,21 @@ struct DspFF : public Pass {
 
                 const auto vec = parseNameValue(fields);
                 for (const auto &it : vec) {
-                    int val = std::stoi(it.second);
-                    registerType.connect.insert(std::make_pair(RTLIL::escape_id(it.first), RTLIL::Const(val, 1)));
+                    auto spec = parsePortName(it.first);
+
+                    const auto &name = std::get<0>(spec);
+                    int lo = std::get<1>(spec);
+                    int hi = std::get<2>(spec);
+
+                    const auto con = RTLIL::Const::from_string(it.second);
+
+                    if (hi >= 0 && lo >= 0) {
+                        if ((hi - lo + 1) != con.size()) {
+                            log_error(" connection to %s requires width of %d but %d is provided\n", it.first.c_str(), (hi - lo + 1), con.size());
+                        }
+                    }
+
+                    registerType.connect.insert(std::make_pair(RTLIL::escape_id(name), std::make_tuple(lo, hi, con)));
                 }
             }
 
@@ -676,7 +702,14 @@ struct DspFF : public Pass {
                     if (!reg.connect.empty()) {
                         log("   connect ports:\n");
                         for (const auto &it : reg.connect) {
-                            log("    %s.%s=%s\n", dsp.name.c_str(), it.first.c_str(), it.second.as_string().c_str());
+                            int lo = std::get<0>(it.second);
+                            int hi = std::get<1>(it.second);
+                            const auto &val = std::get<2>(it.second);
+                            if (lo >= 0 && hi >= 0) {
+                                log("    %s.%s[%d:%d]=%s\n", dsp.name.c_str(), it.first.c_str(), lo, hi, val.as_string().c_str());
+                            } else {
+                                log("    %s.%s=%s\n", dsp.name.c_str(), it.first.c_str(), val.as_string().c_str());
+                            }
                         }
                     }
                 }
@@ -1165,8 +1198,9 @@ struct DspFF : public Pass {
                     if (!other.port.empty()) {
                         log_debug("connection reaches module edge\n");
                         flopsOk = false;
+                    } else {
+                        log_debug("unconnected\n");
                     }
-                    log_debug("unconnected\n");
                     continue;
                 }
 
@@ -1326,8 +1360,48 @@ struct DspFF : public Pass {
 
         // Connect control signals according to the register rule
         for (const auto &it : a_Register.connect) {
-            log_debug(" connecting %s.%s to %s\n", a_Cell->type.c_str(), it.first.c_str(), it.second.as_string().c_str());
-            a_Cell->setPort(it.first, it.second);
+            int lo = std::get<0>(it.second);
+            int hi = std::get<1>(it.second);
+            const auto &con = std::get<2>(it.second);
+
+            // Log
+            if (lo >= 0 && hi >= 0) {
+                log_debug(" connecting %s.%s[%d:%d] to %s\n", a_Cell->type.c_str(), it.first.c_str(), lo, hi, con.as_string().c_str());
+            } else {
+                log_debug(" connecting %s.%s to %s\n", a_Cell->type.c_str(), it.first.c_str(), con.as_string().c_str());
+            }
+
+            // Get original connection or empty if the port is unconnected
+            std::vector<RTLIL::SigBit> sigbits;
+            if (a_Cell->hasPort(it.first)) {
+                sigbits = a_Cell->getPort(it.first).bits();
+            }
+
+            // Merge connections to individual pins
+            if (!sigbits.empty()) {
+
+                if (lo < 0 || hi < 0) {
+                    lo = 0;
+                    hi = sigbits.size() - 1;
+                }
+
+                const auto conbits = RTLIL::SigSpec(con).bits();
+                for (int i = lo, j = 0; i <= hi; ++i, ++j) {
+                    if (i > ((int)sigbits.size() - 1)) {
+                        sigbits.push_back(conbits.at(j));
+                    } else if (conbits.at(j) < RTLIL::State::Sx) {
+                        sigbits[i] = conbits.at(j);
+                    }
+                }
+            } else {
+                sigbits = RTLIL::SigSpec(con).bits();
+            }
+
+            // Connect
+            a_Cell->setPort(it.first, RTLIL::SigSpec(sigbits));
+
+            // TODO: Mark specific bits that has been altered, not the whole port
+            // not critical for now.
             m_DspChanges[a_Cell].conns.insert(it.first);
         }
 
