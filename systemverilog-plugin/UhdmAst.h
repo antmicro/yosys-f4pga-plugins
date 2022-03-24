@@ -125,7 +125,7 @@ class UhdmAst
     void process_immediate_assert();
     void process_hier_path();
     void process_logic_typespec();
-    void process_int_typespec();
+    void process_int_typespec(uint32_t width);
     void process_bit_typespec();
     void process_string_var();
     void process_string_typespec();

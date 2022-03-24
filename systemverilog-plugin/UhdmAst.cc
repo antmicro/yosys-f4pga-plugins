@@ -93,6 +93,16 @@ static std::string get_object_name(vpiHandle obj_h, const std::vector<int> &name
     return objectName;
 }
 
+static uint32_t get_int_typespec_width(int typespec) {
+    switch (typespec) {
+        case vpiByteTypespec: return 8;
+        case vpiShortIntTypespec: return 16;
+        case vpiIntTypespec: return 32;
+        case vpiLongIntTypespec: return 64;
+        default: return 0;
+    }
+}
+
 static AST::AstNode *make_range(int left, int right, bool is_signed = false)
 {
     // generate a pre-validated range node for a fixed signal range.
@@ -1711,9 +1721,12 @@ void UhdmAst::process_typespec_member()
         shared.report.mark_handled(typespec_h);
         break;
     }
-    case vpiIntTypespec: {
+    case vpiByteTypespec:
+    case vpiShortIntTypespec:
+    case vpiIntTypespec:
+    case vpiLongIntTypespec: {
         current_node->is_signed = true;
-        packed_ranges.push_back(make_range(31, 0));
+        packed_ranges.push_back(make_range(get_int_typespec_width(typespec_type) - 1, 0));
         shared.report.mark_handled(typespec_h);
         break;
     }
@@ -1819,7 +1832,10 @@ void UhdmAst::process_enum_typespec()
             shared.report.mark_handled(typespec_h);
             break;
         }
-        case vpiIntTypespec: {
+        case vpiByteTypespec:
+        case vpiShortIntTypespec:
+        case vpiIntTypespec:
+        case vpiLongIntTypespec: {
             current_node->is_signed = true;
             shared.report.mark_handled(typespec_h);
             break;
@@ -3331,12 +3347,12 @@ void UhdmAst::process_logic_typespec()
     add_multirange_wire(current_node, packed_ranges, unpacked_ranges);
 }
 
-void UhdmAst::process_int_typespec()
+void UhdmAst::process_int_typespec(uint32_t width)
 {
     std::vector<AST::AstNode *> packed_ranges;   // comes before wire name
     std::vector<AST::AstNode *> unpacked_ranges; // comes after wire name
     current_node = make_ast_node(AST::AST_WIRE);
-    auto left_const = AST::AstNode::mkconst_int(31, true);
+    auto left_const = AST::AstNode::mkconst_int(width - 1, true);
     auto right_const = AST::AstNode::mkconst_int(0, true);
     auto range = new AST::AstNode(AST::AST_RANGE, left_const, right_const);
     packed_ranges.push_back(range);
@@ -3607,8 +3623,11 @@ void UhdmAst::process_parameter()
             shared.report.mark_handled(typespec_h);
             break;
         }
-        case vpiIntTypespec: {
-            packed_ranges.push_back(make_range(31, 0));
+        case vpiByteTypespec:
+        case vpiIntTypespec:
+        case vpiShortIntTypespec:
+        case vpiLongIntTypespec: {
+            packed_ranges.push_back(make_range(get_int_typespec_width(typespec_type) - 1, 0));
             shared.report.mark_handled(typespec_h);
             break;
         }
@@ -3923,8 +3942,11 @@ AST::AstNode *UhdmAst::process_object(vpiHandle obj_handle)
     case vpiLogicTypespec:
         process_logic_typespec();
         break;
+    case vpiByteTypespec:
+    case vpiShortIntTypespec:
     case vpiIntTypespec:
-        process_int_typespec();
+    case vpiLongIntTypespec:
+        process_int_typespec(get_int_typespec_width(object_type) - 1);
         break;
     case vpiBitTypespec:
         process_bit_typespec();
