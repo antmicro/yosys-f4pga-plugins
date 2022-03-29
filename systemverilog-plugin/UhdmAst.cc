@@ -3624,7 +3624,8 @@ void UhdmAst::process_parameter()
             });
             break;
         }
-        case vpiArrayTypespec: {
+        case vpiArrayTypespec:
+        case vpiPackedArrayTypespec: {
             shared.report.mark_handled(typespec_h);
             visit_one_to_one({vpiElemTypespec}, typespec_h, [&](AST::AstNode *node) {
                 if (!node->str.empty()) {
