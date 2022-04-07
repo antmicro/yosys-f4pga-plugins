@@ -100,7 +100,7 @@ module TDP18K_FIFO (
 	input [31:0] PL_ADDR;
 	input [17:0] PL_DATA_IN;
 	output reg [17:0] PL_DATA_OUT;
-	input [15:0] RAM_ID;
+	input [19:0] RAM_ID;
 	reg [17:0] wmsk_a;
 	reg [17:0] wmsk_b;
 	wire [8:0] addr_a;
@@ -142,8 +142,8 @@ module TDP18K_FIFO (
 	end
 	assign my_id = (PL_ADDR[31:16] == RAM_ID) | PL_INIT;
 	assign preload = (PROTECT ? 1'b0 : my_id & PL_ENA);
-	assign smux_clk_a = (preload ? PL_CLK : CLK_A);
-	assign smux_clk_b = (preload ? 0 : (FMODE ? (SYNC_FIFO ? CLK_A : CLK_B) : CLK_B));
+	assign smux_clk_a = CLK_A;
+	assign smux_clk_b = CLK_B;
 	assign real_fmode = (preload ? 1'b0 : FMODE);
 	assign ram_ren_b = (preload ? PL_REN : (real_fmode ? ren_o : REN_B));
 	assign ram_wen_a = (preload ? PL_WEN : (FMODE ? ~FULL & WEN_A : WEN_A));
@@ -224,7 +224,7 @@ module TDP18K_FIFO (
 					end
 					MODE_4: begin
 						aligned_wdata_a = {2'b00, {4 {WDATA_A[3:0]}}};
-						wmsk_a[17:16] = 2'b11;
+						wmsk_a[17:16] = 2'b00;
 						wmsk_a[15:12] = (ram_waddr_a[3:2] == 2'b11 ? 4'h0 : 4'hf);
 						wmsk_a[11:8] = (ram_waddr_a[3:2] == 2'b10 ? 4'h0 : 4'hf);
 						wmsk_a[7:4] = (ram_waddr_a[3:2] == 2'b01 ? 4'h0 : 4'hf);
@@ -232,7 +232,7 @@ module TDP18K_FIFO (
 					end
 					MODE_2: begin
 						aligned_wdata_a = {2'b00, {8 {WDATA_A[1:0]}}};
-						wmsk_a[17:16] = 2'b11;
+						wmsk_a[17:16] = 2'b00;
 						wmsk_a[15:14] = (ram_waddr_a[3:1] == 3'b111 ? 2'h0 : 2'h3);
 						wmsk_a[13:12] = (ram_waddr_a[3:1] == 3'b110 ? 2'h0 : 2'h3);
 						wmsk_a[11:10] = (ram_waddr_a[3:1] == 3'b101 ? 2'h0 : 2'h3);
@@ -244,7 +244,7 @@ module TDP18K_FIFO (
 					end
 					MODE_1: begin
 						aligned_wdata_a = {2'b00, {16 {WDATA_A[0]}}};
-						wmsk_a = 18'h3ffff;
+						wmsk_a = 18'h0ffff;
 						wmsk_a[{1'b0, ram_waddr_a[3:0]}] = 0;
 					end
 					default: wmsk_a = 18'h3ffff;
@@ -268,7 +268,7 @@ module TDP18K_FIFO (
 				end
 				MODE_4: begin
 					aligned_wdata_b = {2'b00, {4 {WDATA_B[3:0]}}};
-					wmsk_b[17:16] = 2'b11;
+					wmsk_b[17:16] = 2'b00;
 					wmsk_b[15:12] = (ram_waddr_b[3:2] == 2'b11 ? 4'h0 : 4'hf);
 					wmsk_b[11:8] = (ram_waddr_b[3:2] == 2'b10 ? 4'h0 : 4'hf);
 					wmsk_b[7:4] = (ram_waddr_b[3:2] == 2'b01 ? 4'h0 : 4'hf);
@@ -276,7 +276,7 @@ module TDP18K_FIFO (
 				end
 				MODE_2: begin
 					aligned_wdata_b = {2'b00, {8 {WDATA_B[1:0]}}};
-					wmsk_b[17:16] = 2'b11;
+					wmsk_b[17:16] = 2'b00;
 					wmsk_b[15:14] = (ram_waddr_b[3:1] == 3'b111 ? 2'h0 : 2'h3);
 					wmsk_b[13:12] = (ram_waddr_b[3:1] == 3'b110 ? 2'h0 : 2'h3);
 					wmsk_b[11:10] = (ram_waddr_b[3:1] == 3'b101 ? 2'h0 : 2'h3);
@@ -288,7 +288,7 @@ module TDP18K_FIFO (
 				end
 				MODE_1: begin
 					aligned_wdata_b = {2'b00, {16 {WDATA_B[0]}}};
-					wmsk_b = 18'h3ffff;
+					wmsk_b = 18'h0ffff;
 					wmsk_b[{1'b0, ram_waddr_b[3:0]}] = 0;
 				end
 				default: wmsk_b = 18'h3ffff;
@@ -303,7 +303,7 @@ module TDP18K_FIFO (
 			default: RDATA_A = 18'h00000;
 			MODE_18: RDATA_A = ram_rdata_a;
 			MODE_9: begin
-				{RDATA_A[17], RDATA_A[7:0]} = 9'h000;
+				{RDATA_A[17], RDATA_A[15:8]} = 9'h000;
 				{RDATA_A[16], RDATA_A[7:0]} = (ram_addr_a[3] ? {ram_rdata_a[17], ram_rdata_a[15:8]} : {ram_rdata_a[16], ram_rdata_a[7:0]});
 			end
 			MODE_4: begin
