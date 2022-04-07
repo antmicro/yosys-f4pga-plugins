@@ -174,7 +174,7 @@ module fifo_push (
 	assign count = fbytes - (waddr >= raddr ? waddr - raddr : (~raddr + waddr) + 1);
 	assign fbytes = 1 << (DEPTH + 5);
 	always @(*) begin
-		paf_thresh = (wmode[1] ? (wmode[0] ? upaf << 1 : upaf) : upaf << 2);
+		paf_thresh = wmode[1] ? upaf : (wmode[0] ? upaf << 1 : upaf << 2);
 	end
 	always @(*)
 		case (wmode)
@@ -493,7 +493,7 @@ module fifo_pop (
 	assign next_count = waddr - raddr_next;
 	assign count = waddr - raddr;
 	assign fbytes = 1 << (DEPTH + 5);
-	always @(*) pae_thresh = (rmode ? (rmode[0] ? upae << 1 : upae) : upae << 2);
+	always @(*) pae_thresh = rmode[1] ? upae : (rmode[0] ? upae << 1 : upae << 2);
 	assign ren_out = (empty ? 1'b1 : ren_in);
 	always @(*)
 		case (rmode)
