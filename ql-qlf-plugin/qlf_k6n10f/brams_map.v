@@ -70,6 +70,13 @@ module \$__QLF_FACTOR_BRAM36_TDP (A1ADDR, A1DATA, A1EN, B1ADDR, B1DATA, B1EN, C1
 	reg [23:0] PL_ADDR_o;
 	wire [35:0] PL_DATA_o;
 
+	wire SCAN_RESET_i;
+	wire SCAN_CLK_i;
+	wire SCAN_MODE_i;
+	wire SCAN_EN_i;
+	wire [5:0] SCAN_i;
+	reg [5:0] SCAN_o;
+
 	wire [14:CFG_ABITS] A1ADDR_CMPL = {15-CFG_ABITS{1'b0}};
 	wire [14:CFG_ABITS] B1ADDR_CMPL = {15-CFG_ABITS{1'b0}};
 	wire [14:CFG_ABITS] C1ADDR_CMPL = {15-CFG_ABITS{1'b0}};
@@ -195,6 +202,12 @@ module \$__QLF_FACTOR_BRAM36_TDP (A1ADDR, A1DATA, A1EN, B1ADDR, B1DATA, B1EN, C1
 	assign PL_ADDR_i = 24'b0;
 	assign PL_DATA_i = 36'b0;
 
+	assign SCAN_RESET_i = 1'b0;
+	assign SCAN_CLK_i = 1'b0;
+	assign SCAN_MODE_i = 1'b0;
+	assign SCAN_EN_i = 1'b0;
+	assign SCAN_i = 6'b0;
+
 	TDP36K #(
 		.UPAE1_i(12'd10),
 		.UPAF1_i(12'd10),
@@ -260,8 +273,14 @@ module \$__QLF_FACTOR_BRAM36_TDP (A1ADDR, A1DATA, A1EN, B1ADDR, B1DATA, B1EN, C1
 		.PL_REN_o(PL_REN_o),
 		.PL_CLK_o(PL_CLK_o),
 		.PL_ADDR_o(),
-		.PL_DATA_o(PL_DATA_o)
+		.PL_DATA_o(PL_DATA_o),
 
+		.SCAN_RESET_i(SCAN_RESET_i),
+		.SCAN_CLK_i(SCAN_CLK_i),
+		.SCAN_MODE_i(SCAN_MODE_i),
+		.SCAN_EN_i(SCAN_EN_i),
+		.SCAN_i(SCAN_i),
+		.SCAN_o(SCAN_o)
 	);
 endmodule
 
@@ -402,6 +421,13 @@ module \$__QLF_FACTOR_BRAM36_SDP (CLK2, CLK3, A1ADDR, A1DATA, A1EN, B1ADDR, B1DA
 	reg [23:0] PL_ADDR_o;
 	wire [35:0] PL_DATA_o;
 
+	wire SCAN_RESET_i;
+	wire SCAN_CLK_i;
+	wire SCAN_MODE_i;
+	wire SCAN_EN_i;
+	wire [5:0] SCAN_i;
+	reg [5:0] SCAN_o;
+
 	wire [2:0] WMODE;
 	wire [2:0] RMODE;
 
@@ -516,6 +542,12 @@ module \$__QLF_FACTOR_BRAM36_SDP (CLK2, CLK3, A1ADDR, A1DATA, A1EN, B1ADDR, B1DA
 	assign PL_ADDR_i = 24'b0;
 	assign PL_DATA_i = 36'b0;
 
+	assign SCAN_RESET_i = 1'b0;
+	assign SCAN_CLK_i = 1'b0;
+	assign SCAN_MODE_i = 1'b0;
+	assign SCAN_EN_i = 1'b0;
+	assign SCAN_i = 6'b0;
+
 	TDP36K #(
 		.UPAE1_i(12'd10),
 		.UPAF1_i(12'd10),
@@ -581,8 +613,14 @@ module \$__QLF_FACTOR_BRAM36_SDP (CLK2, CLK3, A1ADDR, A1DATA, A1EN, B1ADDR, B1DA
 		.PL_REN_o(PL_REN_o),
 		.PL_CLK_o(PL_CLK_o),
 		.PL_ADDR_o(),
-		.PL_DATA_o(PL_DATA_o)
+		.PL_DATA_o(PL_DATA_o),
 
+		.SCAN_RESET_i(SCAN_RESET_i),
+		.SCAN_CLK_i(SCAN_CLK_i),
+		.SCAN_MODE_i(SCAN_MODE_i),
+		.SCAN_EN_i(SCAN_EN_i),
+		.SCAN_i(SCAN_i),
+		.SCAN_o(SCAN_o)
 	);
 endmodule
 
