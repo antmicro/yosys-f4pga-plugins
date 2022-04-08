@@ -826,14 +826,14 @@ module TDP36K (
     reg [1:0] ram_be_a2;
     reg [1:0] ram_be_b1;
     reg [1:0] ram_be_b2;
-    reg [2:0] ram_rmode_a1;
-    reg [2:0] ram_wmode_a1;
-    reg [2:0] ram_rmode_b1;
-    reg [2:0] ram_wmode_b1;
-    reg [2:0] ram_rmode_a2;
-    reg [2:0] ram_wmode_a2;
-    reg [2:0] ram_rmode_b2;
-    reg [2:0] ram_wmode_b2;
+    wire [2:0] ram_rmode_a1;
+    wire [2:0] ram_wmode_a1;
+    wire [2:0] ram_rmode_b1;
+    wire [2:0] ram_wmode_b1;
+    wire [2:0] ram_rmode_a2;
+    wire [2:0] ram_wmode_a2;
+    wire [2:0] ram_rmode_b2;
+    wire [2:0] ram_wmode_b2;
     wire ram_ren_a1;
     wire ram_ren_b1;
     wire ram_ren_a2;
@@ -846,8 +846,8 @@ module TDP36K (
     wire [11:0] ff_raddr;
     wire [11:0] ff_waddr;
     reg [35:0] fifo_rdata;
-    reg [1:0] fifo_rmode;
-    reg [1:0] fifo_wmode;
+    wire [1:0] fifo_rmode;
+    wire [1:0] fifo_wmode;
     wire [1:0] bwl;
     wire [17:0] pl_dout0;
     wire [17:0] pl_dout1;
@@ -981,29 +981,14 @@ module TDP36K (
             end
         endcase
     end
-    always @(*)
-        case (SPLIT_i)
-            0: begin
-                ram_rmode_a1 = (RMODE_A1_i == MODE_36 ? MODE_18 : RMODE_A1_i);
-                ram_rmode_a2 = (RMODE_A1_i == MODE_36 ? MODE_18 : RMODE_A1_i);
-                ram_wmode_a1 = (WMODE_A1_i == MODE_36 ? MODE_18 : (FMODE1_i ? MODE_18 : WMODE_A1_i));
-                ram_wmode_a2 = (WMODE_A1_i == MODE_36 ? MODE_18 : (FMODE1_i ? MODE_18 : WMODE_A1_i));
-                ram_rmode_b1 = (RMODE_B1_i == MODE_36 ? MODE_18 : (FMODE1_i ? MODE_18 : RMODE_B1_i));
-                ram_rmode_b2 = (RMODE_B1_i == MODE_36 ? MODE_18 : (FMODE1_i ? MODE_18 : RMODE_B1_i));
-                ram_wmode_b1 = (WMODE_B1_i == MODE_36 ? MODE_18 : WMODE_B1_i);
-                ram_wmode_b2 = (WMODE_B1_i == MODE_36 ? MODE_18 : WMODE_B1_i);
-            end
-            1: begin
-                ram_rmode_a1 = (RMODE_A1_i == MODE_36 ? MODE_18 : RMODE_A1_i);
-                ram_rmode_a2 = (RMODE_A2_i == MODE_36 ? MODE_18 : RMODE_A2_i);
-                ram_wmode_a1 = (WMODE_A1_i == MODE_36 ? MODE_18 : WMODE_A1_i);
-                ram_wmode_a2 = (WMODE_A2_i == MODE_36 ? MODE_18 : WMODE_A2_i);
-                ram_rmode_b1 = (RMODE_B1_i == MODE_36 ? MODE_18 : RMODE_B1_i);
-                ram_rmode_b2 = (RMODE_B2_i == MODE_36 ? MODE_18 : RMODE_B2_i);
-                ram_wmode_b1 = (WMODE_B1_i == MODE_36 ? MODE_18 : WMODE_B1_i);
-                ram_wmode_b2 = (WMODE_B2_i == MODE_36 ? MODE_18 : WMODE_B2_i);
-            end
-        endcase
+    assign ram_rmode_a1 = (SPLIT_i ? (RMODE_A1_i == MODE_36 ? MODE_18 : RMODE_A1_i) : (RMODE_A1_i == MODE_36 ? MODE_18 : RMODE_A1_i));
+    assign ram_rmode_a2 = (SPLIT_i ? (RMODE_A2_i == MODE_36 ? MODE_18 : RMODE_A2_i) : (RMODE_A1_i == MODE_36 ? MODE_18 : RMODE_A1_i));
+    assign ram_wmode_a1 = (SPLIT_i ? (WMODE_A1_i == MODE_36 ? MODE_18 : WMODE_A1_i) : (WMODE_A1_i == MODE_36 ? MODE_18 : (FMODE1_i ? MODE_18 : WMODE_A1_i)));
+    assign ram_wmode_a2 = (SPLIT_i ? (WMODE_A2_i == MODE_36 ? MODE_18 : WMODE_A2_i) : (WMODE_A1_i == MODE_36 ? MODE_18 : (FMODE1_i ? MODE_18 : WMODE_A1_i)));
+    assign ram_rmode_b1 = (SPLIT_i ? (RMODE_B1_i == MODE_36 ? MODE_18 : RMODE_B1_i) : (RMODE_B1_i == MODE_36 ? MODE_18 : (FMODE1_i ? MODE_18 : RMODE_B1_i)));
+    assign ram_rmode_b2 = (SPLIT_i ? (RMODE_B2_i == MODE_36 ? MODE_18 : RMODE_B2_i) : (RMODE_B1_i == MODE_36 ? MODE_18 : (FMODE1_i ? MODE_18 : RMODE_B1_i)));
+    assign ram_wmode_b1 = (SPLIT_i ? (WMODE_B1_i == MODE_36 ? MODE_18 : WMODE_B1_i) : (WMODE_B1_i == MODE_36 ? MODE_18 : WMODE_B1_i));
+    assign ram_wmode_b2 = (SPLIT_i ? (WMODE_B2_i == MODE_36 ? MODE_18 : WMODE_B2_i) : (WMODE_B1_i == MODE_36 ? MODE_18 : WMODE_B1_i));
     always @(*) begin : FIFO_READ_SEL
         case (RMODE_B1_i)
             MODE_36: fifo_rdata = {ram_rdata_b2[17:16], ram_rdata_b1[17:16], ram_rdata_b2[15:0], ram_rdata_b1[15:0]};
@@ -1114,20 +1099,8 @@ module TDP36K (
             laddr_b1 <= 1'sb0;
         else
             laddr_b1 <= ADDR_B1_i;
-    always @(*) begin
-        case (WMODE_A1_i)
-            default: fifo_wmode = 2'b00;
-            MODE_36: fifo_wmode = 2'b00;
-            MODE_18: fifo_wmode = 2'b01;
-            MODE_9: fifo_wmode = 2'b10;
-        endcase
-        case (RMODE_B1_i)
-            default: fifo_rmode = 2'b00;
-            MODE_36: fifo_rmode = 2'b00;
-            MODE_18: fifo_rmode = 2'b01;
-            MODE_9: fifo_rmode = 2'b10;
-        endcase
-    end
+    assign fifo_wmode = ((WMODE_A1_i == MODE_36) ? 2'b00 : ((WMODE_A1_i == MODE_18) ? 2'b01 : ((WMODE_A1_i == MODE_9) ? 2'b10 : 2'b00)));
+    assign fifo_rmode = ((RMODE_B1_i == MODE_36) ? 2'b00 : ((RMODE_B1_i == MODE_18) ? 2'b01 : ((RMODE_B1_i == MODE_9) ? 2'b10 : 2'b00)));
     fifo_ctl #(
         .ADDR_WIDTH(12),
         .FIFO_WIDTH(3'd4),
