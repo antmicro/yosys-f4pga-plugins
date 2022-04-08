@@ -169,34 +169,22 @@ module TDP18K_FIFO (
 	assign ram_wen_a_n = ~ram_wen_a;
 	assign cen_b_n = ~cen_b;
 	assign ram_wen_b_n = ~ram_wen_b;
-	dti_dp_tm16fcll_1024x18_t8bw2x_m_hc uram(
-		.DO_A(ram_rdata_a),
-		.DO_B(ram_rdata_b),
-		.A_A(ram_addr_a[13:4]),
-		.A_B(ram_addr_b[13:4]),
-		.T_A_A(ram_addr_a[13:4]),
-		.T_A_B(ram_addr_b[13:4]),
-		.DI_A(aligned_wdata_a),
-		.DI_B(aligned_wdata_b),
-		.T_DI_A(aligned_wdata_a),
-		.T_DI_B(aligned_wdata_b),
-		.T_BE_N(1'b1),
-		.CE_N_A(cen_a_n),
-		.CE_N_B(cen_b_n),
-		.T_CE_N_A(cen_a_n),
-		.T_CE_N_B(cen_b_n),
-		.GWE_N_A(ram_wen_a_n),
-		.GWE_N_B(ram_wen_b_n),
-		.T_GWE_N_A(ram_wen_a_n),
-		.T_GWE_N_B(ram_wen_b_n),
-		.BWE_N_A(wmsk_a),
-		.BWE_N_B(wmsk_b),
-		.T_BWE_N_A(wmsk_a),
-		.T_BWE_N_B(wmsk_b),
-		.T_RWM_A(3'b011),
-		.T_RWM_B(3'b011),
-		.CLK_A(smux_clk_a),
-		.CLK_B(smux_clk_b)
+
+	sram1024x18 uram(
+		.clk_a(smux_clk_a),
+		.cen_a(cen_a_n),
+		.wen_a(ram_wen_a_n),
+		.addr_a(ram_addr_a[13:4]),
+		.wmsk_a(wmsk_a),
+		.wdata_a(aligned_wdata_a),
+		.rdata_a(ram_rdata_a),
+		.clk_b(smux_clk_b),
+		.cen_b(cen_b_n),
+		.wen_b(ram_wen_b_n),
+		.addr_b(ram_addr_b[13:4]),
+		.wmsk_b(wmsk_b),
+		.wdata_b(aligned_wdata_b),
+		.rdata_b(ram_rdata_b)
 	);
 	fifo_ctl #(
 		.ADDR_WIDTH(11),
