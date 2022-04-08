@@ -97,6 +97,13 @@ module tb;
 	reg [23:0] PL_ADDR_i;
 	reg [35:0] PL_DATA_i;
 	wire [35:0] PL_DATA_o;
+	wire SCAN_RESET_i;
+	wire SCAN_CLK_i;
+	wire SCAN_MODE_i;
+	wire SCAN_EN_i;
+	wire [5:0] SCAN_i;
+	wire [5:0] SCAN_o;
+
 	wire [35:0] expected_data_a;
 	wire [35:0] expected_data_b;
 	wire [35:0] last_expected_a;
@@ -2341,6 +2348,12 @@ module tb;
 	wire PL_REN_o;
 	wire PL_CLK_o;
 
+	assign SCAN_RESET_i = 1'b0;
+	assign SCAN_CLK_i = 1'b0;
+	assign SCAN_MODE_i = 1'b0;
+	assign SCAN_EN_i = 1'b0;
+	assign SCAN_i = 6'b0;
+
 	TDP36K #(
 		.UPAE1_i(`UPAE1),
 		.UPAF1_i(`UPAF1),
@@ -2410,6 +2423,13 @@ module tb;
 		.PL_REN_o(PL_REN_o),
 		.PL_CLK_o(PL_CLK_o),
 		.PL_ADDR_o(),
-		.PL_DATA_o(PL_DATA_o)
+		.PL_DATA_o(PL_DATA_o),
+
+		.SCAN_RESET_i(SCAN_RESET_i),
+		.SCAN_CLK_i(SCAN_CLK_i),
+		.SCAN_MODE_i(SCAN_MODE_i),
+		.SCAN_EN_i(SCAN_EN_i),
+		.SCAN_i(SCAN_i),
+		.SCAN_o(SCAN_o)
 	);
 endmodule
