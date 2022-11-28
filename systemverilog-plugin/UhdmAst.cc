@@ -1543,6 +1543,7 @@ AST::AstNode *UhdmAst::find_ancestor(const std::unordered_set<AST::AstNodeType> 
 
 void UhdmAst::process_design()
 {
+	std::cout << "XXX: " << __func__ << ":" << __LINE__ << std::endl;
     current_node = make_ast_node(AST::AST_DESIGN);
     visit_one_to_many({UHDM::uhdmallInterfaces, UHDM::uhdmallPackages, UHDM::uhdmtopPackages, UHDM::uhdmallModules, UHDM::uhdmtopModules}, obj_h,
                       [&](AST::AstNode *node) {
@@ -1594,6 +1595,7 @@ void UhdmAst::process_design()
             node->attributes.erase(UhdmAst::unpacked_ranges());
         });
     }
+	std::cout << "XXX: " << __func__ << ":" << __LINE__ << std::endl;
 }
 
 void UhdmAst::simplify_parameter(AST::AstNode *parameter, AST::AstNode *module_node)
@@ -1630,6 +1632,7 @@ void UhdmAst::process_module()
     sanitize_symbol_name(name);
     type = strip_package_name(type);
     name = strip_package_name(name);
+	std::cout << "XXX: " << __func__ << ":" << __LINE__ << " | module name: " << name << std::endl;
     if (!is_module_instance) {
         if (shared.top_nodes.find(type) != shared.top_nodes.end()) {
             current_node = shared.top_nodes[type];
