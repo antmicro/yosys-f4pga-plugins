@@ -1397,7 +1397,7 @@ static void add_or_replace_child(AST::AstNode *parent, AST::AstNode *child)
                 if (child->type == AST::AST_MEMORY)
                     child->type = AST::AST_WIRE;
             }
-            child->is_signed = (*it)->is_signed;
+            child->is_signed = child->is_signed || (*it)->is_signed;
             if (!(*it)->children.empty() && child->children.empty()) {
                 // This is a bit ugly, but if the child we're replacing has children and
                 // our node doesn't, we copy its children to not lose any information
