@@ -1725,12 +1725,6 @@ void UhdmAst::process_module()
         std::string module_parameters;
         visit_one_to_many({vpiParamAssign}, obj_h, [&](AST::AstNode *node) {
             if (node && node->type == AST::AST_PARAMETER) {
-                if (node->children[0]->type != AST::AST_CONSTANT) {
-                    if (shared.top_nodes.count(type)) {
-                        simplify_parameter(node, shared.top_nodes[type]);
-                        log_assert(node->children[0]->type == AST::AST_CONSTANT || node->children[0]->type == AST::AST_REALVALUE);
-                    }
-                }
                 if (shared.top_nodes.count(type)) {
                     if (!node->children[0]->str.empty())
                         module_parameters += node->str + "=" + node->children[0]->str;
@@ -1771,12 +1765,6 @@ void UhdmAst::process_module()
         }
         visit_one_to_many({vpiParamAssign}, obj_h, [&](AST::AstNode *node) {
             if (node) {
-                if (node->children[0]->type != AST::AST_CONSTANT) {
-                    if (shared.top_nodes[type]) {
-                        simplify_parameter(node, module_node);
-                        log_assert(node->children[0]->type == AST::AST_CONSTANT || node->children[0]->type == AST::AST_REALVALUE);
-                    }
-                }
                 auto parent_node = std::find_if(module_node->children.begin(), module_node->children.end(), [&](AST::AstNode *child) -> bool {
                     return ((child->type == AST::AST_PARAMETER) || (child->type == AST::AST_LOCALPARAM)) && child->str == node->str &&
                            // skip real parameters as they are currently not working: https://github.com/alainmarcel/Surelog/issues/1035
