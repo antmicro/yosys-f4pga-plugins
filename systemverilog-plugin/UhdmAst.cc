@@ -1710,7 +1710,7 @@ void UhdmAst::process_module()
                     move_type_to_new_typedef(current_node, node);
                 }
             });
-            visit_one_to_many({vpiModule, vpiParamAssign, vpiNet, vpiArrayNet, vpiGenScopeArray, vpiProcess, vpiClockingBlock}, obj_h,
+            visit_one_to_many({vpiModule, vpiParamAssign, vpiNet, vpiArrayNet, vpiGenScopeArray, vpiProcess}, obj_h,
                               [&](AST::AstNode *node) {
                                   if (node) {
                                       if (node->type == AST::AST_ASSIGN && node->children.size() < 2)
