@@ -416,7 +416,6 @@ static void check_memories(AST::AstNode *module_node)
                                                                   ? node->attributes[UhdmAst::unpacked_ranges()]->children
                                                                   : std::vector<AST::AstNode *>();
             if (packed_ranges.size() == 1 && unpacked_ranges.size() == 1) {
-                log_assert(!memories.count(node->str));
                 memories[node->str] = node;
             }
         }
