@@ -83,6 +83,15 @@ static void sanitize_symbol_name(std::string &name)
     }
 }
 
+static std::string shorten_name(std::string name)
+{
+    if (name.rfind('.') != std::string::npos) {
+        name = name.substr(name.rfind('.') + 1);
+        sanitize_symbol_name(name);
+    }
+    return name;
+}
+
 static std::string get_name(vpiHandle obj_h, bool prefer_full_name = false)
 {
     auto first_check = prefer_full_name ? vpiFullName : vpiName;
@@ -96,7 +105,7 @@ static std::string get_name(vpiHandle obj_h, bool prefer_full_name = false)
         name = s;
     }
     if (name.rfind('.') != std::string::npos) {
-        name = name.substr(name.rfind('.') + 1);
+        name = name.substr(name.find_first_of('.') + 1);
     }
     sanitize_symbol_name(name);
     return name;
@@ -416,6 +425,8 @@ static void check_memories(AST::AstNode *module_node)
                                                                   ? node->attributes[UhdmAst::unpacked_ranges()]->children
                                                                   : std::vector<AST::AstNode *>();
             if (packed_ranges.size() == 1 && unpacked_ranges.size() == 1) {
+                log_assert(!memories.count(node->str));
+                node->str = shorten_name(node->str);
                 memories[node->str] = node;
             }
         }
@@ -2193,7 +2204,7 @@ void UhdmAst::process_real_var()
 
 void UhdmAst::process_array_var()
 {
-    current_node = make_ast_node(AST::AST_WIRE);
+    current_node = make_ast_node(AST::AST_WIRE, {}, true);
     std::vector<AST::AstNode *> packed_ranges;
     std::vector<AST::AstNode *> unpacked_ranges;
     visit_one_to_one({vpiTypespec}, obj_h, [&](AST::AstNode *node) {
