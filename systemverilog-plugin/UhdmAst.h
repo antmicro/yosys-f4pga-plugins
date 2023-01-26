@@ -33,7 +33,7 @@ class UhdmAst
     // Create an AstNode of the specified type with metadata extracted from
     // the given vpiHandle.
     ::Yosys::AST::AstNode *make_ast_node(::Yosys::AST::AstNodeType type, std::vector<::Yosys::AST::AstNode *> children = {},
-                                         bool prefer_full_name = false);
+                                         bool prefer_full_name = false, bool keep_name_scope = false);
 
     // Create an identifier AstNode
     ::Yosys::AST::AstNode *make_identifier(const std::string &name);

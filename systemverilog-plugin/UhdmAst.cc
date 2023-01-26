@@ -92,7 +92,7 @@ static std::string shorten_name(std::string name)
     return name;
 }
 
-static std::string get_name(vpiHandle obj_h, bool prefer_full_name = false)
+static std::string get_name(vpiHandle obj_h, bool prefer_full_name = false, bool keep_name_scope = false)
 {
     auto first_check = prefer_full_name ? vpiFullName : vpiName;
     auto last_check = prefer_full_name ? vpiName : vpiFullName;
@@ -105,7 +105,7 @@ static std::string get_name(vpiHandle obj_h, bool prefer_full_name = false)
         name = s;
     }
     if (name.rfind('.') != std::string::npos) {
-        name = name.substr(name.find_first_of('.') + 1);
+        name = keep_name_scope ? name.substr(name.find_first_of('.') + 1) : name.substr(name.rfind('.') + 1);
     }
     sanitize_symbol_name(name);
     return name;
@@ -1359,10 +1359,10 @@ void UhdmAst::transform_breaks_continues(AST::AstNode *loop, AST::AstNode *decl_
     }
 }
 
-AST::AstNode *UhdmAst::make_ast_node(AST::AstNodeType type, std::vector<AST::AstNode *> children, bool prefer_full_name)
+AST::AstNode *UhdmAst::make_ast_node(AST::AstNodeType type, std::vector<AST::AstNode *> children, bool prefer_full_name, bool keep_name_scope)
 {
     auto node = new AST::AstNode(type);
-    node->str = get_name(obj_h, prefer_full_name);
+    node->str = get_name(obj_h, prefer_full_name, keep_name_scope);
     auto it = node_renames.find(node->str);
     if (it != node_renames.end())
         node->str = it->second;
@@ -2204,7 +2204,7 @@ void UhdmAst::process_real_var()
 
 void UhdmAst::process_array_var()
 {
-    current_node = make_ast_node(AST::AST_WIRE, {}, true);
+    current_node = make_ast_node(AST::AST_WIRE, {}, true, true);
     std::vector<AST::AstNode *> packed_ranges;
     std::vector<AST::AstNode *> unpacked_ranges;
     visit_one_to_one({vpiTypespec}, obj_h, [&](AST::AstNode *node) {
