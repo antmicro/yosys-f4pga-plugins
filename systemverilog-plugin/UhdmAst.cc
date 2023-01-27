@@ -251,6 +251,7 @@ static size_t add_multirange_attribute(AST::AstNode *wire_node, const std::vecto
 static AST::AstNode *convert_range(AST::AstNode *id, const std::vector<AST::AstNode *> packed_ranges,
                                    const std::vector<AST::AstNode *> unpacked_ranges, int i)
 {
+    std::cout << "NAME: " << id->str << " | " << __func__ << ":" << __LINE__ << std::endl;
     log_assert(AST_INTERNAL::current_ast_mod);
     log_assert(AST_INTERNAL::current_scope.count(id->str));
     AST::AstNode *wire_node = AST_INTERNAL::current_scope[id->str];
@@ -346,6 +347,7 @@ static void resolve_wiretype(AST::AstNode *wire_node)
         }
     }
     AST::AstNode *wiretype_ast = nullptr;
+    //std::cout << "NAME: " << wiretype_node->str << " | " << __func__ << ":" << __LINE__ << std::endl;
     log_assert(AST_INTERNAL::current_scope.count(wiretype_node->str));
     wiretype_ast = AST_INTERNAL::current_scope[wiretype_node->str];
     // we need to setup current top ast as this simplify
@@ -412,11 +414,17 @@ static void check_memories(AST::AstNode *module_node)
     std::map<std::string, AST::AstNode *> memories;
     visitEachDescendant(module_node, [&](AST::AstNode *node) {
         if (node->str == "\\$readmemh") {
+            std::cout << "children: " << node->children.size() << " | " << __func__ << ":" << __LINE__ << std::endl;
+            std::cout << "child NAME: " << node->children[0]->str << " | " << __func__ << ":" << __LINE__ << std::endl;
+            std::cout << "child NAME: " << node->children[1]->str << " | " << __func__ << ":" << __LINE__ << std::endl;
             if (node->children.size() != 2 || node->children[1]->str.empty() || node->children[1]->type != AST::AST_IDENTIFIER) {
                 log_error("%s:%d: Wrong usage of '\\$readmemh'\n", node->filename.c_str(), node->location.first_line);
             }
             if (memories[node->children[1]->str])
+            {
+                std::cout << "NAME: " << node->children[1]->str << " | " << __func__ << ":" << __LINE__ << std::endl;
                 add_force_convert_attribute(memories[node->children[1]->str], 0);
+            }
         }
         if (node->type == AST::AST_WIRE) {
             const std::vector<AST::AstNode *> packed_ranges =
@@ -424,13 +432,19 @@ static void check_memories(AST::AstNode *module_node)
             const std::vector<AST::AstNode *> unpacked_ranges = node->attributes.count(UhdmAst::unpacked_ranges())
                                                                   ? node->attributes[UhdmAst::unpacked_ranges()]->children
                                                                   : std::vector<AST::AstNode *>();
+            std::cout << "NAME: " << node->str << " | " << __func__ << ":" << __LINE__ << std::endl;
+            std::cout << "packed ranges size: " << packed_ranges.size() << " | " << __func__ << ":" << __LINE__ << std::endl;
+            std::cout << "unpacked ranges size: " << unpacked_ranges.size() << " | " << __func__ << ":" << __LINE__ << std::endl;
             if (packed_ranges.size() == 1 && unpacked_ranges.size() == 1) {
                 log_assert(!memories.count(node->str));
+                std::cout << "NAME: " << node->str << " | " << __func__ << ":" << __LINE__ << std::endl;
                 node->str = shorten_name(node->str);
+                std::cout << "NAME: " << node->str << " | " << __func__ << ":" << __LINE__ << std::endl;
                 memories[node->str] = node;
             }
         }
         if (node->type == AST::AST_IDENTIFIER && memories.count(node->str)) {
+            std::cout << "NAME: " << node->str << " | " << __func__ << ":" << __LINE__ << std::endl;
             if (!memories[node->str]->attributes.count(UhdmAst::force_convert()) && node->children.size() == 0) {
                 add_force_convert_attribute(memories[node->str]);
             }
@@ -515,6 +529,7 @@ static void convert_packed_unpacked_range(AST::AstNode *wire_node)
 
 static AST::AstNode *expand_dot(const AST::AstNode *current_struct, const AST::AstNode *search_node)
 {
+    std::cout << "NAME: " << current_struct->str << " | " << __func__ << ":" << __LINE__ << std::endl;
     AST::AstNode *current_struct_elem = nullptr;
     auto search_str = search_node->str.find("\\") == 0 ? search_node->str.substr(1) : search_node->str;
     auto struct_elem_it =
@@ -523,6 +538,7 @@ static AST::AstNode *expand_dot(const AST::AstNode *current_struct, const AST::A
         current_struct->dumpAst(NULL, "struct >");
         log_error("Couldn't find search elem: %s in struct\n", search_str.c_str());
     }
+    std::cout << "NAME: " << node->str << " | " << __func__ << ":" << __LINE__ << std::endl;
     current_struct_elem = *struct_elem_it;
 
     AST::AstNode *left = nullptr, *right = nullptr;
@@ -629,6 +645,7 @@ static AST::AstNode *expand_dot(const AST::AstNode *current_struct, const AST::A
 static AST::AstNode *convert_dot(AST::AstNode *wire_node, AST::AstNode *node, AST::AstNode *dot)
 {
     AST::AstNode *struct_node = nullptr;
+    std::cout << "NAME: " << node->str << " | " << __func__ << ":" << __LINE__ << std::endl;
     if (wire_node->type == AST::AST_STRUCT || wire_node->type == AST::AST_UNION) {
         struct_node = wire_node;
     } else if (wire_node->attributes.count(ID::wiretype)) {
@@ -667,6 +684,7 @@ static AST::AstNode *convert_dot(AST::AstNode *wire_node, AST::AstNode *node, AS
 
 static void setup_current_scope(std::unordered_map<std::string, AST::AstNode *> top_nodes, AST::AstNode *current_top_node)
 {
+    std::cout << "NAME " << __func__ << ":" << __LINE__ << std::endl;
     for (auto it = top_nodes.begin(); it != top_nodes.end(); it++) {
         if (!it->second)
             continue;
@@ -918,6 +936,7 @@ static void simplify(AST::AstNode *current_node, AST::AstNode *parent_node)
                                [](auto c) { return c->type == static_cast<int>(AST::Extended::AST_DOT); });
     AST::AstNode *dot = (dot_it != current_node->children.end()) ? *dot_it : nullptr;
 
+    std::cout << "NAME: " << current_node->str << " | " << __func__ << ":" << __LINE__ << std::endl;
     AST::AstNode *expanded = nullptr;
     if (dot) {
         if (!AST_INTERNAL::current_scope.count(current_node->str)) {
@@ -1041,6 +1060,7 @@ static void simplify(AST::AstNode *current_node, AST::AstNode *parent_node)
     default:
         break;
     }
+    std::cout << "NAME: " << current_node->str << " | " << __func__ << ":" << __LINE__ << std::endl;
 }
 
 static void clear_current_scope()
@@ -2205,8 +2225,10 @@ void UhdmAst::process_real_var()
 void UhdmAst::process_array_var()
 {
     current_node = make_ast_node(AST::AST_WIRE, {}, true, true);
+    //current_node = make_ast_node(AST::AST_WIRE);
     std::vector<AST::AstNode *> packed_ranges;
     std::vector<AST::AstNode *> unpacked_ranges;
+    std::cout << "NAME: " << current_node->str << " | " << __func__ << ":" << __LINE__ << std::endl;
     visit_one_to_one({vpiTypespec}, obj_h, [&](AST::AstNode *node) {
         if (node->str.empty()) {
             // anonymous typespec, move the children to variable
@@ -2216,6 +2238,7 @@ void UhdmAst::process_array_var()
             auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
             wiretype_node->str = node->str;
             current_node->children.push_back(wiretype_node);
+            std::cout << "wiretype_node->str: " << wiretype_node->str << " | " << __func__ << ":" << __LINE__ << std::endl;
             current_node->is_custom_type = true;
         }
         delete node;
@@ -2231,6 +2254,7 @@ void UhdmAst::process_array_var()
                 } else {
                     auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
                     wiretype_node->str = node->str;
+                    std::cout << "wiretype_node->str: " << wiretype_node->str << " | " << __func__ << ":" << __LINE__ << std::endl;
                     current_node->children.push_back(wiretype_node);
                     current_node->is_custom_type = true;
                 }
@@ -2246,6 +2270,7 @@ void UhdmAst::process_array_var()
                 } else {
                     auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
                     wiretype_node->str = node->str;
+                    std::cout << "wiretype_node->str: " << wiretype_node->str << " | " << __func__ << ":" << __LINE__ << std::endl;
                     current_node->children.push_back(wiretype_node);
                     current_node->is_custom_type = true;
                 }
@@ -2515,6 +2540,8 @@ void UhdmAst::process_packed_array_net()
 void UhdmAst::process_array_net(const UHDM::BaseClass *object)
 {
     current_node = make_ast_node(AST::AST_WIRE);
+    //current_node = make_ast_node(AST::AST_WIRE, {}, true, true);
+    std::cout << "NAME: " << current_node->str << " | " << __func__ << ":" << __LINE__ << std::endl;
     vpiHandle itr = vpi_iterate(vpiNet, obj_h);
     std::vector<AST::AstNode *> packed_ranges;
     std::vector<AST::AstNode *> unpacked_ranges;
@@ -2542,7 +2569,8 @@ void UhdmAst::process_array_net(const UHDM::BaseClass *object)
                     current_node->children = std::move(node->children);
                 } else {
                     auto wiretype_node = new AST::AstNode(AST::AST_WIRETYPE);
-                    wiretype_node->str = node->str;
+                    //wiretype_node->str = node->str;
+                    wiretype_node->str = shorten_name(node->str);
                     current_node->children.push_back(wiretype_node);
                     current_node->is_custom_type = true;
                 }
