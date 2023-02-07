@@ -401,12 +401,16 @@ static void add_force_convert_attribute(AST::AstNode *wire_node, int val = 1)
 static void check_memories(AST::AstNode *module_node)
 {
     std::map<std::string, AST::AstNode *> memories;
+    std::string current_scope_str = "";
     visitEachDescendant(module_node, [&](AST::AstNode *node) {
+        if (node->type == AST::AST_GENBLOCK) {
+            current_scope_str = "." + node->str;
+        }
         if (node->str == "\\$readmemh") {
             if (node->children.size() != 2 || node->children[1]->str.empty() || node->children[1]->type != AST::AST_IDENTIFIER) {
                 log_error("%s:%d: Wrong usage of '\\$readmemh'\n", node->filename.c_str(), node->location.first_line);
             }
-            if (memories[node->children[1]->str])
+            if (memories[current_scope_str + node->children[1]->str])
                 add_force_convert_attribute(memories[node->children[1]->str], 0);
         }
         if (node->type == AST::AST_WIRE) {
@@ -416,13 +420,23 @@ static void check_memories(AST::AstNode *module_node)
                                                                   ? node->attributes[UhdmAst::unpacked_ranges()]->children
                                                                   : std::vector<AST::AstNode *>();
             if (packed_ranges.size() == 1 && unpacked_ranges.size() == 1) {
-                log_assert(!memories.count(node->str));
-                memories[node->str] = node;
+                log_assert(!memories.count(current_scope_str + node->str));
+                memories[current_scope_str + node->str] = node;
             }
         }
-        if (node->type == AST::AST_IDENTIFIER && memories.count(node->str)) {
-            if (!memories[node->str]->attributes.count(UhdmAst::force_convert()) && node->children.size() == 0) {
-                add_force_convert_attribute(memories[node->str]);
+        if (node->type == AST::AST_IDENTIFIER) {
+            std::string name = current_scope_str + node->str;
+            if (memories.count(name)) {
+                if (!memories[name]->attributes.count(UhdmAst::force_convert()) && node->children.size() == 0) {
+                    add_force_convert_attribute(memories[name]);
+                }
+            } else {
+                name = node->str;
+                if (memories.count(name)) {
+                    if (!memories[name]->attributes.count(UhdmAst::force_convert()) && node->children.size() == 0) {
+                        add_force_convert_attribute(memories[name]);
+                    }
+                }
             }
         }
     });
