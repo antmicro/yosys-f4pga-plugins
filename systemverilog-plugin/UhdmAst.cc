@@ -1643,6 +1643,13 @@ void UhdmAst::process_design()
             if (pair.second->type == AST::AST_PACKAGE)
                 current_node->children.insert(current_node->children.begin(), pair.second);
             else {
+                visitEachDescendant(pair.second, [&](AST::AstNode *node) {
+                    if (node->type == AST::AST_GENBLOCK) {
+                        setup_current_scope(shared.top_nodes, pair.second);
+                        simplify(node, nullptr);
+                        clear_current_scope();
+                    }
+                });
                 check_memories(pair.second);
                 setup_current_scope(shared.top_nodes, pair.second);
                 simplify(pair.second, nullptr);
