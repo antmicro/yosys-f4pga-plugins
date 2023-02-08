@@ -1755,7 +1755,13 @@ void UhdmAst::process_module()
         // Not a top module, create instance
         current_node = make_ast_node(AST::AST_CELL);
         std::string module_parameters;
+        visit_one_to_many({vpiParameter}, obj_h, [&](AST::AstNode *node) {
+            shared.top_nodes[type]->dumpAst(NULL, "cell module >");
+
+            node->dumpAst(NULL, "param type >");
+        });
         visit_one_to_many({vpiParamAssign}, obj_h, [&](AST::AstNode *node) {
+            node->dumpAst(NULL, "param assign >");
             if (node && node->type == AST::AST_PARAMETER) {
                 if (node->children[0]->type != AST::AST_CONSTANT) {
                     if (shared.top_nodes.count(type)) {
@@ -4538,6 +4544,9 @@ AST::AstNode *UhdmAst::process_object(vpiHandle obj_handle)
         process_unsupported_stmt(object);
         break;
     case vpiTypeParameter:
+        visit_one_to_one({vpiTypespec}, obj_h, [&](AST::AstNode *node) {
+            current_node = node;
+        });
         // Instances in an `uhdmTopModules` tree already have all parameter references
         // substituted with the parameter type/value by Surelog,
         // so the plugin doesn't need to process the parameter itself.
