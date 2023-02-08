@@ -2,6 +2,7 @@
 #include <cstring>
 #include <functional>
 #include <limits>
+#include <list>
 #include <regex>
 #include <string>
 #include <vector>
@@ -404,79 +405,111 @@ static void add_force_convert_attribute(AST::AstNode *wire_node, int val = 1)
     wire_node->attributes[UhdmAst::force_convert()] = AST::AstNode::mkconst_int(val, true);
 }
 
-static void check_memories(AST::AstNode *module_node)
+static std::map<std::string, AST::AstNode *> check_memories(AST::AstNode *node, std::list<std::string> scopes,
+                                                            std::map<std::string, AST::AstNode *> memories)
 {
-    std::map<std::string, AST::AstNode *> memories;
-    std::string current_scope_str = "";
-    visitEachDescendant(module_node, [&](AST::AstNode *node) {
-        if (node->type == AST::AST_GENBLOCK) {
-            current_scope_str = "." + node->str;
+    std::string full_current_scope = "";
+    std::size_t mem;
+    bool mem_found = false;
+
+    if (node->type == AST::AST_GENBLOCK) {
+        scopes.push_back(node->str);
+    }
+
+    for (auto s : scopes) {
+        full_current_scope = full_current_scope + "." + s;
+    }
+
+    // We get the list of scopes for nested genblocks by running this func recursively for all children
+    for (auto child : node->children) {
+        memories = check_memories(child, scopes, memories);
+    }
+
+    if (node->str == "\\$readmemh") {
+        if (node->children.size() != 2 || node->children[1]->str.empty() || node->children[1]->type != AST::AST_IDENTIFIER) {
+            log_error("%s:%d: Wrong usage of '\\$readmemh'\n", node->filename.c_str(), node->location.first_line);
         }
-        if (node->str == "\\$readmemh") {
-            if (node->children.size() != 2 || node->children[1]->str.empty() || node->children[1]->type != AST::AST_IDENTIFIER) {
-                log_error("%s:%d: Wrong usage of '\\$readmemh'\n", node->filename.c_str(), node->location.first_line);
-            }
-            if (memories[current_scope_str + node->children[1]->str])
-                add_force_convert_attribute(memories[node->children[1]->str], 0);
+        std::string mem_name = full_current_scope + "." + node->children[1]->str;
+        if (memories[mem_name]) {
+            add_force_convert_attribute(memories[mem_name], 0);
         }
-        if (node->type == AST::AST_WIRE) {
-            const std::vector<AST::AstNode *> packed_ranges =
-              node->attributes.count(UhdmAst::packed_ranges()) ? node->attributes[UhdmAst::packed_ranges()]->children : std::vector<AST::AstNode *>();
-            const std::vector<AST::AstNode *> unpacked_ranges = node->attributes.count(UhdmAst::unpacked_ranges())
-                                                                  ? node->attributes[UhdmAst::unpacked_ranges()]->children
-                                                                  : std::vector<AST::AstNode *>();
-            if (packed_ranges.size() == 1 && unpacked_ranges.size() == 1) {
-                log_assert(!memories.count(current_scope_str + node->str));
-                memories[current_scope_str + node->str] = node;
-            }
+    }
+    if (node->type == AST::AST_WIRE) {
+        const std::vector<AST::AstNode *> packed_ranges =
+          node->attributes.count(UhdmAst::packed_ranges()) ? node->attributes[UhdmAst::packed_ranges()]->children : std::vector<AST::AstNode *>();
+        const std::vector<AST::AstNode *> unpacked_ranges =
+          node->attributes.count(UhdmAst::unpacked_ranges()) ? node->attributes[UhdmAst::unpacked_ranges()]->children : std::vector<AST::AstNode *>();
+        if (packed_ranges.size() == 1 && unpacked_ranges.size() == 1) {
+            std::string name = full_current_scope + "." + node->str;
+            log_assert(!memories.count(name));
+            memories[name] = node;
         }
-        if (node->type == AST::AST_IDENTIFIER) {
-            std::string name = current_scope_str + node->str;
-            bool force_convert = false;
-            if (memories.count(name)) {
-                if (!memories[name]->attributes.count(UhdmAst::force_convert())) {
-                    // convert memory to list of registers
-                    // in case of access to whole memory
-                    // or slice of memory
-                    // e.g.
-                    // logic [3:0] mem [8:0];
-                    // always_ff @ (posedge clk) begin
-                    //   mem <= '{default:0};
-                    //   mem[7:1] <= mem[6:0];
-                    // end
-                    // don't convert in case of accessing
-                    // memory using address, e.g.
-                    // mem[0] <= '{default:0}
-                    //
-                    // Access to whole memory
-                    if (node->children.size() == 0) {
-                        force_convert = true;
-                    }
-                    // Access to slice of memory
-                    if (node->children.size() == 1 && node->children[0]->children.size() != 1) {
-                        force_convert = true;
+    }
+    if (node->type == AST::AST_IDENTIFIER) {
+        std::string name = "";
+        bool force_convert = false;
+        name = "." + node->str;
+        // 1. We iterate through the list of memories.
+        for (auto m : memories) {
+            mem = m.first.find(name);
+            if (mem != std::string::npos) {
+                // 2. When we meet the memory that contains the base name of the memory we are looking for,
+                //    we need to find the scope it is declared in.
+                for (std::list<std::string>::reverse_iterator it = scopes.rbegin(); it != scopes.rend(); it++) {
+                    // 3. To find the scope, we iterate through the list of scopes, starting from the most nested ones,
+                    //    and check if the scope name is included in the currently checked memory from list of memories.
+                    if (m.first.find(*it) != std::string::npos) {
+                        name = m.first;
+                        mem_found = true;
+                        if (!memories[name]->attributes.count(UhdmAst::force_convert())) {
+                            // convert memory to list of registers
+                            // in case of access to whole memory
+                            // or slice of memory
+                            // e.g.
+                            // logic [3:0] mem [8:0];
+                            // always_ff @ (posedge clk) begin
+                            //   mem <= '{default:0};
+                            //   mem[7:1] <= mem[6:0];
+                            // end
+                            // don't convert in case of accessing
+                            // memory using address, e.g.
+                            // mem[0] <= '{default:0}
+                            //
+                            // Access to whole memory
+                            if (node->children.size() == 0) {
+                                force_convert = true;
+                            }
+                            // Access to slice of memory
+                            if (node->children.size() == 1 && node->children[0]->children.size() != 1) {
+                                force_convert = true;
+                            }
+                        }
+                        break;
                     }
                 }
-            } else {
-                name = node->str;
-                if (memories.count(name)) {
-                    if (!memories[name]->attributes.count(UhdmAst::force_convert())) {
-                        // Access to whole memory
-                        if (node->children.size() == 0) {
-                            force_convert = true;
-                        }
-                        // Access to slice of memory
-                        if (node->children.size() == 1 && node->children[0]->children.size() != 1) {
-                            force_convert = true;
-                        }
-                    }
-                }
-            }
-            if (force_convert) {
-                add_force_convert_attribute(memories[name]);
+                // 4. If we find the scope, we end serching through the list of memories.
+                if (mem_found)
+                    break;
             }
         }
-    });
+        // 5. If we don't find any scope, we check if the memory is declared in the main scope.
+        if (!mem_found && memories.count(name)) {
+            if (!memories[name]->attributes.count(UhdmAst::force_convert())) {
+                // Access to whole memory
+                if (node->children.size() == 0) {
+                    force_convert = true;
+                }
+                // Access to slice of memory
+                if (node->children.size() == 1 && node->children[0]->children.size() != 1) {
+                    force_convert = true;
+                }
+            }
+        }
+        if (force_convert) {
+            add_force_convert_attribute(memories[name]);
+        }
+    }
+    return memories;
 }
 
 // This function is workaround missing support for multirange (with n-ranges) packed/unpacked nodes
@@ -1738,7 +1771,7 @@ void UhdmAst::process_design()
         if (!pair.second)
             continue;
         if (pair.second->type == AST::AST_PACKAGE) {
-            check_memories(pair.second);
+            check_memories(pair.second, {}, {});
             setup_current_scope(shared.top_nodes, pair.second);
             simplify(pair.second, nullptr);
             clear_current_scope();
@@ -1753,7 +1786,7 @@ void UhdmAst::process_design()
             if (pair.second->type == AST::AST_PACKAGE)
                 current_node->children.insert(current_node->children.begin(), pair.second);
             else {
-                check_memories(pair.second);
+                check_memories(pair.second, {}, {});
                 setup_current_scope(shared.top_nodes, pair.second);
                 simplify(pair.second, nullptr);
                 clear_current_scope();
