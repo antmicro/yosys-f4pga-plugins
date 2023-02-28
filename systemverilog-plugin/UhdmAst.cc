@@ -410,17 +410,13 @@ static void add_force_convert_attribute(AST::AstNode *wire_node, uint32_t val = 
     }
 }
 
-static void check_memories(AST::AstNode *node, std::string &scope, std::map<std::string, AST::AstNode *> &memories)
+static void check_memories(AST::AstNode *node, std::string scope, std::map<std::string, AST::AstNode *> &memories)
 {
     if (node->type == AST::AST_GENBLOCK) {
-        const auto parent_scope_end_pos = scope.size();
-        scope += "." + node->str;
+        const auto inner_scope = scope + "." + node->str;
         for (auto *child : node->children) {
-            check_memories(child, scope, memories);
+            check_memories(child, inner_scope, memories);
         }
-        // As "scope" is a reference, we need to remove subscope appended above,
-        // so the nodes that aren't its children don't have it.
-        scope.erase(parent_scope_end_pos);
         return;
     }
 
@@ -503,9 +499,8 @@ static void check_memories(AST::AstNode *node, std::string &scope, std::map<std:
 
 static void check_memories(AST::AstNode *node)
 {
-    std::string scope;
     std::map<std::string, AST::AstNode *> memories;
-    check_memories(node, scope, memories);
+    check_memories(node, "", memories);
 }
 
 // This function is workaround missing support for multirange (with n-ranges) packed/unpacked nodes
