@@ -173,14 +173,14 @@ class UhdmAst
     // Can be called multiple times; only the first call performs actual initialization.
     static void static_init();
 
-    static const ::Yosys::IdString &partial();
-    static const ::Yosys::IdString &packed_ranges();
-    static const ::Yosys::IdString &unpacked_ranges();
+    static ::Yosys::IdString partial();
+    static ::Yosys::IdString packed_ranges();
+    static ::Yosys::IdString unpacked_ranges();
     // set this attribute to force conversion of multirange wire to single range. It is useful to force-convert some memories.
-    static const ::Yosys::IdString &force_convert();
-    static const ::Yosys::IdString &is_imported();
-    static const ::Yosys::IdString &is_simplified_wire();
-    static const ::Yosys::IdString &low_high_bound();
+    static ::Yosys::IdString force_convert();
+    static ::Yosys::IdString is_imported();
+    static ::Yosys::IdString is_simplified_wire();
+    static ::Yosys::IdString low_high_bound();
 };
 
 } // namespace systemverilog_plugin

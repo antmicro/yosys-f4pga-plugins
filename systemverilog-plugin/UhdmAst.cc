@@ -45,22 +45,22 @@ enum AstNodeTypeExtended {
 namespace attr_id
 {
 
-static IdString partial;
-static IdString packed_ranges;
-static IdString unpacked_ranges;
-static IdString force_convert;
-static IdString is_imported;
-static IdString is_simplified_wire;
-static IdString low_high_bound;
+// static IdString partial;
+// static IdString packed_ranges;
+// static IdString unpacked_ranges;
+// static IdString force_convert;
+// static IdString is_imported;
+// static IdString is_simplified_wire;
+// static IdString low_high_bound;
 }; // namespace attr_id
 
-/*static*/ const IdString &UhdmAst::partial() { return attr_id::partial; }
-/*static*/ const IdString &UhdmAst::packed_ranges() { return attr_id::packed_ranges; }
-/*static*/ const IdString &UhdmAst::unpacked_ranges() { return attr_id::unpacked_ranges; }
-/*static*/ const IdString &UhdmAst::force_convert() { return attr_id::force_convert; }
-/*static*/ const IdString &UhdmAst::is_imported() { return attr_id::is_imported; }
-/*static*/ const IdString &UhdmAst::is_simplified_wire() { return attr_id::is_simplified_wire; }
-/*static*/ const IdString &UhdmAst::low_high_bound() { return attr_id::low_high_bound; }
+IdString UhdmAst::partial()            { return IdString("\\partial");           } //attr_id::partial; }
+IdString UhdmAst::packed_ranges()      { return IdString("\\packed_ranges");     } //attr_id::packed_ranges; }
+IdString UhdmAst::unpacked_ranges()    { return IdString("\\unpacked_ranges");   } //attr_id::unpacked_ranges; }
+IdString UhdmAst::force_convert()      { return IdString("\\force_convert");     } //attr_id::force_convert; }
+IdString UhdmAst::is_imported()        { return IdString("\\is_imported");       } //attr_id::is_imported; }
+IdString UhdmAst::is_simplified_wire() { return IdString("\\is_simplified_wire");} //attr_id::is_simplified_wire; }
+IdString UhdmAst::low_high_bound()     { return IdString("\\low_high_bound");    } //attr_id::low_high_bound; }
 
 void UhdmAst::static_init()
 {
@@ -74,13 +74,13 @@ void UhdmAst::static_init()
 
     // Register IdStrings. Can't be done statically, as the IdString class uses resources created during Yosys initialization which happens after
     // static initialization of the plugin when everything is statically linked.
-    attr_id::partial = IdString("\\partial");
-    attr_id::packed_ranges = IdString("\\packed_ranges");
-    attr_id::unpacked_ranges = IdString("\\unpacked_ranges");
-    attr_id::force_convert = IdString("\\force_convert");
-    attr_id::is_imported = IdString("\\is_imported");
-    attr_id::is_simplified_wire = IdString("\\is_simplified_wire");
-    attr_id::low_high_bound = IdString("\\low_high_bound");
+    // attr_id::partial            = IdString("\\partial");
+    // attr_id::packed_ranges      = IdString("\\packed_ranges");
+    // attr_id::unpacked_ranges    = IdString("\\unpacked_ranges");
+    // attr_id::force_convert      = IdString("\\force_convert");
+    // attr_id::is_imported        = IdString("\\is_imported");
+    // attr_id::is_simplified_wire = IdString("\\is_simplified_wire");
+    // attr_id::low_high_bound     = IdString("\\low_high_bound");
 }
 
 static void sanitize_symbol_name(std::string &name)
