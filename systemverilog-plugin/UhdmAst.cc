@@ -418,7 +418,8 @@ static void check_memories(AST::AstNode *node, std::string &scope, std::map<std:
         for (auto *child : node->children) {
             check_memories(child, scope, memories);
         }
-        // Remove subscope appended above.
+        // As "scope" is a reference, we need to remove subscope appended above,
+        // so the nodes that aren't its children don't have it.
         scope.erase(parent_scope_end_pos);
         return;
     }
@@ -463,6 +464,18 @@ static void check_memories(AST::AstNode *node, std::string &scope, std::map<std:
                 if (!iter->second->attributes.count(UhdmAst::force_convert())) {
                     const bool is_full_memory_access = (node->children.size() == 0);
                     const bool is_slice_memory_access = (node->children.size() == 1 && node->children[0]->children.size() != 1);
+                    // convert memory to list of registers
+                    // in case of access to whole memory
+                    // or slice of memory
+                    // e.g.
+                    // logic [3:0] mem [8:0];
+                    // always_ff @ (posedge clk) begin
+                    //   mem <= '{default:0};
+                    //   mem[7:1] <= mem[6:0];
+                    // end
+                    // don't convert in case of accessing
+                    // memory using address, e.g.
+                    // mem[0] <= '{default:0}
                     if (is_full_memory_access || is_slice_memory_access) {
                         add_force_convert_attribute(iter->second);
                     }
@@ -470,10 +483,11 @@ static void check_memories(AST::AstNode *node, std::string &scope, std::map<std:
                 break;
             } else {
                 if (scope_end_pos == 0) {
-                    // Top scope has been tried, name not found.
+                    // We reached the top scope and the memory node wasn't found.
                     break;
                 } else {
-                    // Erase node name and last segment of the scope
+                    // Memory node wasn't found.
+                    // Erase node name and last segment of the scope to check the previous scope.
                     // FIXME: This doesn't work with escaped identifiers containing a dot.
                     scope_end_pos = full_id.find_last_of('.', scope_end_pos - 1);
                     if (scope_end_pos == std::string::npos) {
