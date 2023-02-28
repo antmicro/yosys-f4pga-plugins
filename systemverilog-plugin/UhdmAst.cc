@@ -433,8 +433,9 @@ static void check_memories(AST::AstNode *node, std::string &scope, std::map<std:
             log_error("%s:%d: Wrong usage of '\\$readmemh'\n", node->filename.c_str(), node->location.first_line);
         }
         std::string name = scope + "." + node->children[1]->str;
-        if (memories[name]) {
-            add_force_convert_attribute(memories[name], 0);
+        const auto iter = memories.find(name);
+        if (iter != memories.end()) {
+            add_force_convert_attribute(iter->second, 0);
         }
     }
 
