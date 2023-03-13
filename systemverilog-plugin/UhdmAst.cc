@@ -314,6 +314,8 @@ static AST::AstNode *convert_range(AST::AstNode *id, const std::vector<AST::AstN
     return result;
 }
 
+static void simplify(AST::AstNode *current_node, AST::AstNode *parent_node);
+
 static void resolve_wiretype(AST::AstNode *wire_node)
 {
     AST::AstNode *wiretype_node = nullptr;
@@ -347,6 +349,7 @@ static void resolve_wiretype(AST::AstNode *wire_node)
     wiretype_ast = AST_INTERNAL::current_scope[wiretype_node->str];
     // we need to setup current top ast as this simplify
     // needs to have access to all already defined ids
+    simplify(wiretype_ast, nullptr);
     while (wire_node->simplify(true, false, false, 1, -1, false, false)) {
     }
     if (wiretype_ast->children[0]->type == AST::AST_STRUCT && wire_node->type == AST::AST_WIRE) {
