@@ -349,7 +349,6 @@ static void resolve_wiretype(AST::AstNode *wire_node)
     wiretype_ast = AST_INTERNAL::current_scope[wiretype_node->str];
     // we need to setup current top ast as this simplify
     // needs to have access to all already defined ids
-    simplify(wiretype_ast, nullptr);
     while (wire_node->simplify(true, false, false, 1, -1, false, false)) {
     }
     if (wiretype_ast->children[0]->type == AST::AST_STRUCT && wire_node->type == AST::AST_WIRE) {
@@ -357,6 +356,7 @@ static void resolve_wiretype(AST::AstNode *wire_node)
         wire_node->range_left = struct_width;
         wire_node->children[0]->range_left = struct_width;
         wire_node->children[0]->children[0]->integer = struct_width;
+        simplify(wiretype_ast, nullptr);
     }
     if (wiretype_ast && wire_node->attributes.count(ID::wiretype)) {
         log_assert(wiretype_ast->type == AST::AST_TYPEDEF);
