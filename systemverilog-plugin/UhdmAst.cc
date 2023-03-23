@@ -251,8 +251,7 @@ static size_t add_multirange_attribute(AST::AstNode *wire_node, const std::vecto
     return size;
 }
 
-static AST::AstNode *convert_range(AST::AstNode *id, const std::vector<AST::AstNode *> packed_ranges,
-                                   const std::vector<AST::AstNode *> unpacked_ranges, int i)
+static AST::AstNode *convert_range(AST::AstNode *id, int packed_ranges_size, int unpacked_ranges_size, int i)
 {
     log_assert(AST_INTERNAL::current_ast_mod);
     log_assert(AST_INTERNAL::current_scope.count(id->str));
@@ -266,12 +265,12 @@ static AST::AstNode *convert_range(AST::AstNode *id, const std::vector<AST::AstN
         single_elem_size.push_back(elem_size);
     }
     std::reverse(single_elem_size.begin(), single_elem_size.end());
-    log_assert(i < static_cast<int>(unpacked_ranges.size() + packed_ranges.size()));
+    log_assert(i < (unpacked_ranges_size + packed_ranges_size));
     log_assert(!id->children.empty());
     AST::AstNode *result = nullptr;
     // we want to start converting from the end
     if (i < static_cast<int>(id->children.size()) - 1) {
-        result = convert_range(id, packed_ranges, unpacked_ranges, i + 1);
+        result = convert_range(id, packed_ranges_size, unpacked_ranges_size, i + 1);
     }
     // special case, we want to select whole wire
     if (id->children.size() == 0 && i == 0) {
@@ -1099,17 +1098,15 @@ static void simplify(AST::AstNode *current_node, AST::AstNode *parent_node)
             if (!wire_node->attributes.count(UhdmAst::is_simplified_wire())) {
                 simplify(wire_node, nullptr);
             }
-            const std::vector<AST::AstNode *> packed_ranges = wire_node->attributes.count(UhdmAst::packed_ranges())
-                                                                ? wire_node->attributes[UhdmAst::packed_ranges()]->children
-                                                                : std::vector<AST::AstNode *>();
-            const std::vector<AST::AstNode *> unpacked_ranges = wire_node->attributes.count(UhdmAst::unpacked_ranges())
-                                                                  ? wire_node->attributes[UhdmAst::unpacked_ranges()]->children
-                                                                  : std::vector<AST::AstNode *>();
+            const int packed_ranges_size =
+              wire_node->attributes.count(UhdmAst::packed_ranges()) ? wire_node->attributes[UhdmAst::packed_ranges()]->children.size() : 0;
+            const int unpacked_ranges_size =
+              wire_node->attributes.count(UhdmAst::unpacked_ranges()) ? wire_node->attributes[UhdmAst::unpacked_ranges()]->children.size() : 0;
             if ((wire_node->type == AST::AST_WIRE || wire_node->type == AST::AST_PARAMETER || wire_node->type == AST::AST_LOCALPARAM) &&
-                !(packed_ranges.empty() && unpacked_ranges.empty()) && !(packed_ranges.size() + unpacked_ranges.size() == 1)) {
-                auto result = convert_range(current_node, packed_ranges, unpacked_ranges, 0);
-                for (size_t i = 0; i < current_node->children.size(); i++) {
-                    delete current_node->children[i];
+                (packed_ranges_size + unpacked_ranges_size > 1)) {
+                auto *result = convert_range(current_node, packed_ranges_size, unpacked_ranges_size, 0);
+                for (const auto *child : current_node->children) {
+                    delete child;
                 }
                 current_node->children.clear();
                 current_node->children.push_back(result);
