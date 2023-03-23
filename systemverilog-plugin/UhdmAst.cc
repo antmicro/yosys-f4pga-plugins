@@ -661,9 +661,9 @@ static AST::AstNode *expand_dot(const AST::AstNode *current_struct, const AST::A
         // First select correct element in first struct
         delete left;
         delete right;
-        left = sub_dot->children[0];
-        right = sub_dot->children[1];
-        // TODO(wsip) should sub_dot be deleted?
+        left = sub_dot->children[0]->clone();
+        right = sub_dot->children[1]->clone();
+        delete sub_dot;
     }
     if (struct_range) {
         // now we have correct element set,
