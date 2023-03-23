@@ -3373,6 +3373,7 @@ void UhdmAst::process_assignment_pattern_op()
                   std::find_if(param_type->children.begin(), param_type->children.end(), [key](AST::AstNode *child) { return child->str == key; }) -
                   param_type->children.begin();
                 ordered_children.insert(std::make_pair(pos, node->children[1]->clone()));
+                delete node;
             } else {
                 current_node->children.push_back(node);
             }
