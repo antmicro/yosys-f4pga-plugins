@@ -4,6 +4,7 @@
 #include <limits>
 #include <regex>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "UhdmAst.h"
@@ -194,6 +195,8 @@ static void visitEachDescendant(AST::AstNode *node, const std::function<void(AST
 static void add_multirange_wire(AST::AstNode *node, std::vector<AST::AstNode *> packed_ranges, std::vector<AST::AstNode *> unpacked_ranges,
                                 bool reverse = true)
 {
+    if (node->attributes.count(UhdmAst::packed_ranges()))
+        delete node->attributes[UhdmAst::packed_ranges()];
     node->attributes[UhdmAst::packed_ranges()] = AST::AstNode::mkconst_int(1, false, 1);
     if (!packed_ranges.empty()) {
         if (reverse)
@@ -202,6 +205,8 @@ static void add_multirange_wire(AST::AstNode *node, std::vector<AST::AstNode *> 
                                                                     packed_ranges.end());
     }
 
+    if (node->attributes.count(UhdmAst::unpacked_ranges()))
+        delete node->attributes[UhdmAst::unpacked_ranges()];
     node->attributes[UhdmAst::unpacked_ranges()] = AST::AstNode::mkconst_int(1, false, 1);
     if (!unpacked_ranges.empty()) {
         if (reverse)
@@ -298,11 +303,10 @@ static AST::AstNode *convert_range(AST::AstNode *id, const std::vector<AST::AstN
                   new AST::AstNode(AST::AST_SUB, range_right, AST::AstNode::mkconst_int(wire_node->multirange_dimensions[right_idx], false));
             }
         }
-        range_left =
-          new AST::AstNode(AST::AST_SUB,
-                           new AST::AstNode(AST::AST_MUL, new AST::AstNode(AST::AST_ADD, range_left, AST::AstNode::mkconst_int(1, false)),
-                                            AST::AstNode::mkconst_int(single_elem_size[i + 1], false)),
-                           AST::AstNode::mkconst_int(1, false));
+        range_left = new AST::AstNode(AST::AST_SUB,
+                                      new AST::AstNode(AST::AST_MUL, new AST::AstNode(AST::AST_ADD, range_left, AST::AstNode::mkconst_int(1, false)),
+                                                       AST::AstNode::mkconst_int(single_elem_size[i + 1], false)),
+                                      AST::AstNode::mkconst_int(1, false));
         // TODO(wsip) range_right is allocated and lost
         range_right = new AST::AstNode(AST::AST_MUL, range_right, AST::AstNode::mkconst_int(single_elem_size[i + 1], false));
         if (result) {
@@ -659,10 +663,8 @@ static AST::AstNode *expand_dot(const AST::AstNode *current_struct, const AST::A
     }
     if (sub_dot) {
         // First select correct element in first struct
-        delete left;
-        delete right;
-        left = sub_dot->children[0]->clone();
-        right = sub_dot->children[1]->clone();
+        std::swap(left, sub_dot->children[0]);
+        std::swap(right, sub_dot->children[1]);
         delete sub_dot;
     }
     if (struct_range) {
@@ -843,6 +845,7 @@ static int simplify_struct(AST::AstNode *snode, int base_offset, AST::AstNode *p
             snode->multirange_dimensions.push_back(min(range->range_left, range->range_right));
             snode->multirange_dimensions.push_back(max(range->range_left, range->range_right) - min(range->range_left, range->range_right) + 1);
             snode->multirange_swapped.push_back(range->range_swapped);
+            delete range;
         }
     }
     // examine members from last to first
@@ -1078,6 +1081,7 @@ static void simplify(AST::AstNode *current_node, AST::AstNode *parent_node)
         AST_INTERNAL::current_scope[current_node->str] = current_node;
         break;
     case AST::AST_WIRE:
+        delete current_node->attributes[UhdmAst::is_simplified_wire()];
         current_node->attributes[UhdmAst::is_simplified_wire()] = AST::AstNode::mkconst_int(1, true);
         [[fallthrough]];
     case AST::AST_PARAMETER:
@@ -2032,8 +2036,8 @@ void UhdmAst::process_struct_typespec()
             if (node->children[0]->children[0]->children.size() == 2) {
                 range = node->children[0]->children[0]->children[1]->clone();
             }
-            // TODO(wsip) delete_children removes attributes too. Do we want this?
-            node->delete_children();
+            delete node->children[0];
+            node->children.clear();
             node->children.push_back(range);
         }
         current_node->children.push_back(node);
@@ -2049,7 +2053,7 @@ void UhdmAst::process_union_typespec()
             log_assert(!node->children[0]->children.empty());
             log_assert(!node->children[0]->children[0]->children.empty());
             // TODO: add missing enum_type attribute
-            AST::AstNode * range = nullptr;
+            AST::AstNode *range = nullptr;
             // check if single enum element is larger than 1 bit
             if (node->children[0]->children[0]->children.size() == 2) {
                 range = node->children[0]->children[0]->children[1]->clone();
@@ -4774,11 +4778,10 @@ AST::AstNode *UhdmAst::visit_designs(const std::vector<vpiHandle> &designs)
     current_node = new AST::AstNode(AST::AST_DESIGN);
     for (auto design : designs) {
         UhdmAst ast(this, shared, indent);
-        auto *nodes = ast.process_object(design);
+        auto *processed_design_node = ast.process_object(design);
         // Flatten multiple designs into one
-        for (auto child : nodes->children) {
-            current_node->children.push_back(child);
-        }
+        current_node->children = std::move(processed_design_node->children);
+        delete processed_design_node;
     }
 
     // Release static copies of private IdStrings. Those should be last instances in use.
