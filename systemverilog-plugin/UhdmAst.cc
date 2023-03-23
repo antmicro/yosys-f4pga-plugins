@@ -2146,13 +2146,15 @@ void UhdmAst::process_typespec_member()
                         packed_ranges.push_back(r->clone());
                     }
                     std::reverse(packed_ranges.begin(), packed_ranges.end());
-                    node->attributes.erase(UhdmAst::packed_ranges());
+                    delete node->attributes[attr_id::packed_ranges];
+                    node->attributes.erase(attr_id::packed_ranges);
                 }
                 if (node->attributes.count(UhdmAst::unpacked_ranges())) {
                     for (auto r : node->attributes[UhdmAst::unpacked_ranges()]->children) {
                         unpacked_ranges.push_back(r->clone());
                     }
-                    node->attributes.erase(UhdmAst::unpacked_ranges());
+                    delete node->attributes[attr_id::unpacked_ranges];
+                    node->attributes.erase(attr_id::unpacked_ranges);
                 }
                 node->cloneInto(current_node);
                 current_node->str = str;
@@ -2166,13 +2168,15 @@ void UhdmAst::process_typespec_member()
                         packed_ranges.push_back(r->clone());
                     }
                     std::reverse(packed_ranges.begin(), packed_ranges.end());
-                    node->attributes.erase(UhdmAst::packed_ranges());
+                    delete node->attributes[attr_id::packed_ranges];
+                    node->attributes.erase(attr_id::packed_ranges);
                 }
                 if (node->attributes.count(UhdmAst::unpacked_ranges())) {
                     for (auto r : node->attributes[UhdmAst::unpacked_ranges()]->children) {
                         unpacked_ranges.push_back(r->clone());
                     }
-                    node->attributes.erase(UhdmAst::unpacked_ranges());
+                    delete node->attributes[attr_id::unpacked_ranges];
+                    node->attributes.erase(attr_id::unpacked_ranges);
                 }
                 node->cloneInto(current_node);
                 current_node->str = str;
