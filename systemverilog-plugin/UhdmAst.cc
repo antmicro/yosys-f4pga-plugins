@@ -4306,7 +4306,8 @@ void UhdmAst::process_parameter()
                 current_node->is_custom_type = true;
                 auto it = shared.param_types.find(current_node->str);
                 if (it == shared.param_types.end())
-                    shared.param_types.insert(std::make_pair(current_node->str, node));
+                    shared.param_types.insert(std::make_pair(current_node->str, node->clone()));
+                delete node;
             });
             break;
         }
