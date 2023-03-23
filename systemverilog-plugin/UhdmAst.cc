@@ -1329,6 +1329,7 @@ AST::AstNode *UhdmAst::process_value(vpiHandle obj_h)
                     node->attributes[UhdmAst::packed_ranges()]->children[0]->children.size()) {
                     size = node->attributes[UhdmAst::packed_ranges()]->children[0]->children[0]->integer + 1;
                 }
+                delete node;
             });
             if (size == -1) {
                 size = vpi_get(vpiSize, obj_h);
