@@ -595,8 +595,14 @@ static void convert_packed_unpacked_range(AST::AstNode *wire_node)
     }
 
     if (wire_node->type == AST::AST_STRUCT_ITEM || wire_node->type == AST::AST_STRUCT) {
-        wire_node->attributes.erase(UhdmAst::packed_ranges());
-        wire_node->attributes.erase(UhdmAst::unpacked_ranges());
+        if (wire_node->attributes.count(attr_id::packed_ranges)) {
+            delete wire_node->attributes[attr_id::packed_ranges];
+            wire_node->attributes.erase(attr_id::packed_ranges);
+        }
+        if (wire_node->attributes.count(attr_id::unpacked_ranges)) {
+            delete wire_node->attributes[attr_id::unpacked_ranges];
+            wire_node->attributes.erase(attr_id::unpacked_ranges);
+        }
     }
 
     // Insert new range
