@@ -3710,8 +3710,14 @@ void UhdmAst::process_function()
             for (auto c : node->children) {
                 if (assign_types.find(c->type) != assign_types.end() && c->children[0]->type == AST::AST_WIRE) {
                     c->children[0]->type = AST::AST_IDENTIFIER;
-                    c->children[0]->attributes.erase(UhdmAst::packed_ranges());
-                    c->children[0]->attributes.erase(UhdmAst::unpacked_ranges());
+                    if (c->children[0]->attributes.count(attr_id::packed_ranges)) {
+                        delete c->children[0]->attributes[attr_id::packed_ranges];
+                        c->children[0]->attributes.erase(attr_id::packed_ranges);
+                    }
+                    if (c->children[0]->attributes.count(attr_id::unpacked_ranges)) {
+                        delete c->children[0]->attributes[attr_id::unpacked_ranges];
+                        c->children[0]->attributes.erase(attr_id::unpacked_ranges);
+                    }
                 }
             }
             current_node->children.push_back(node);
