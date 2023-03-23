@@ -1046,6 +1046,9 @@ static void simplify(AST::AstNode *current_node, AST::AstNode *parent_node)
             if (prefix_node != nullptr) {
                 current_node->type = AST::AST_PREFIX;
                 current_node->children = prefix_node->children;
+
+                prefix_node->children.clear();
+                delete prefix_node;
             }
         } else {
             auto wire_node = AST_INTERNAL::current_scope[current_node->str];
@@ -3747,12 +3750,15 @@ void UhdmAst::process_hier_path()
             if (!top_node) {
                 current_node->str += node->str.substr(1);
                 current_node->children = std::move(node->children);
+                node->children.clear();
                 top_node = current_node;
                 delete node;
             } else {
                 if (node->str.empty()) {
                     log_assert(!node->children.empty());
                     top_node->children.push_back(node->children[0]);
+                    node->children.erase(node->children.begin());
+                    delete node;
                 } else {
                     node->type = static_cast<AST::AstNodeType>(AST::Extended::AST_DOT);
                     top_node->children.push_back(node);
@@ -4158,6 +4164,7 @@ void UhdmAst::process_port()
                         current_node->is_custom_type = true;
                     }
                 }
+                // TODO(wsip) should we delete node?
             });
             visit_one_to_many({vpiRange}, actual_h, [&](AST::AstNode *node) { current_node->children.push_back(node); });
             shared.report.mark_handled(actual_h);
