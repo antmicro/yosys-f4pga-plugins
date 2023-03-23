@@ -2025,8 +2025,8 @@ void UhdmAst::process_struct_typespec()
             if (node->children[0]->children[0]->children.size() == 2) {
                 range = node->children[0]->children[0]->children[1]->clone();
             }
-            delete node->children[0];
-            node->children.clear();
+            // TODO(wsip) delete_children removes attributes too. Do we want this?
+            node->delete_children();
             node->children.push_back(range);
         }
         current_node->children.push_back(node);
