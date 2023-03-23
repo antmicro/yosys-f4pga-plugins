@@ -303,7 +303,7 @@ static AST::AstNode *convert_range(AST::AstNode *id, const std::vector<AST::AstN
                            new AST::AstNode(AST::AST_MUL, new AST::AstNode(AST::AST_ADD, range_left, AST::AstNode::mkconst_int(1, false)),
                                             AST::AstNode::mkconst_int(single_elem_size[i + 1], false)),
                            AST::AstNode::mkconst_int(1, false));
-        range_right = new AST::AstNode(AST::AST_MUL, range_right->clone(), AST::AstNode::mkconst_int(single_elem_size[i + 1], false));
+        range_right = new AST::AstNode(AST::AST_MUL, range_right, AST::AstNode::mkconst_int(single_elem_size[i + 1], false));
         if (result) {
             range_right = new AST::AstNode(AST::AST_ADD, range_right->clone(), result->children[1]->clone());
             range_left = new AST::AstNode(AST::AST_SUB, new AST::AstNode(AST::AST_ADD, range_right->clone(), result->children[0]->clone()),
