@@ -2049,10 +2049,12 @@ void UhdmAst::process_union_typespec()
             log_assert(!node->children[0]->children.empty());
             log_assert(!node->children[0]->children[0]->children.empty());
             // TODO: add missing enum_type attribute
-            auto range = make_range(0, 0);
+            AST::AstNode * range = nullptr;
             // check if single enum element is larger than 1 bit
             if (node->children[0]->children[0]->children.size() == 2) {
                 range = node->children[0]->children[0]->children[1]->clone();
+            } else {
+                range = make_range(0, 0);
             }
             delete node->children[0];
             node->children.clear();
@@ -4251,6 +4253,7 @@ void UhdmAst::process_net()
             current_node->children.insert(current_node->children.begin(), wiretype_node);
             current_node->is_custom_type = true;
         }
+        delete node;
     });
     if (vpiHandle typespec_h = vpi_handle(vpiTypespec, obj_h)) {
         visit_one_to_many({vpiRange}, typespec_h, [&](AST::AstNode *node) { packed_ranges.push_back(node); });
