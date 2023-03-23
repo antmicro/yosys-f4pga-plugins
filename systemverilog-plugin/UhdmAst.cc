@@ -1658,6 +1658,7 @@ static void add_or_replace_child(AST::AstNode *parent, AST::AstNode *child)
             for (auto initial_child = child->children.begin() + 1; initial_child != child->children.end(); ++initial_child) {
                 initial_node->children.push_back((*initial_child)->clone());
             }
+            delete child;
         } else {
             // Parent AST_INITIAL does not exist
             // Place child AST_INITIAL before AST_ALWAYS if found
