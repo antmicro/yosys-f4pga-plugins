@@ -2910,12 +2910,15 @@ void UhdmAst::process_begin(bool is_named)
         if (node) {
             if ((node->type == AST::AST_ASSIGN_EQ || node->type == AST::AST_ASSIGN_LE) && node->children.size() == 1) {
                 auto func_node = find_ancestor({AST::AST_FUNCTION, AST::AST_TASK});
-                if (!func_node)
+                if (!func_node) {
+                    delete node;
                     return;
+                }
                 auto wire_node = new AST::AstNode(AST::AST_WIRE);
                 wire_node->type = AST::AST_WIRE;
                 wire_node->str = node->children[0]->str;
                 func_node->children.push_back(wire_node);
+                delete node;
             } else {
                 if (hierarchy_node)
                     hierarchy_node->children.push_back(node);
