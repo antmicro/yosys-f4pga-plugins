@@ -308,6 +308,8 @@ static AST::AstNode *convert_range(AST::AstNode *id, const std::vector<AST::AstN
             range_right = new AST::AstNode(AST::AST_ADD, range_right->clone(), result->children[1]->clone());
             range_left = new AST::AstNode(AST::AST_SUB, new AST::AstNode(AST::AST_ADD, range_right->clone(), result->children[0]->clone()),
                                           result->children[1]->clone());
+            delete result;
+            result = nullptr;
         }
         result = new AST::AstNode(AST::AST_RANGE, range_left, range_right);
     }
