@@ -1828,11 +1828,17 @@ void UhdmAst::process_design()
     if (!shared.debug_flag) {
         // Ranges were already converted, erase obsolete attributes
         visitEachDescendant(current_node, [&](AST::AstNode *node) {
-            node->attributes.erase(UhdmAst::packed_ranges());
-            node->attributes.erase(UhdmAst::unpacked_ranges());
-            if (node->attributes.count(UhdmAst::is_simplified_wire())) {
-                delete node->attributes[UhdmAst::is_simplified_wire()];
-                node->attributes.erase(UhdmAst::is_simplified_wire());
+            if (node->attributes.count(attr_id::packed_ranges)) {
+                delete node->attributes[attr_id::packed_ranges];
+                node->attributes.erase(attr_id::packed_ranges);
+            }
+            if (node->attributes.count(attr_id::unpacked_ranges)) {
+                delete node->attributes[attr_id::unpacked_ranges];
+                node->attributes.erase(attr_id::unpacked_ranges);
+            }
+            if (node->attributes.count(attr_id::is_simplified_wire)) {
+                delete node->attributes[attr_id::is_simplified_wire];
+                node->attributes.erase(attr_id::is_simplified_wire);
             }
         });
     }
