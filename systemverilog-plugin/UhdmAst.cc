@@ -1836,23 +1836,13 @@ void UhdmAst::process_design()
             pair.second = nullptr;
         }
     }
-    if (!shared.debug_flag) {
-        // Ranges were already converted, erase obsolete attributes
-        visitEachDescendant(current_node, [&](AST::AstNode *node) {
-            if (node->attributes.count(attr_id::packed_ranges)) {
-                delete node->attributes[attr_id::packed_ranges];
-                node->attributes.erase(attr_id::packed_ranges);
-            }
-            if (node->attributes.count(attr_id::unpacked_ranges)) {
-                delete node->attributes[attr_id::unpacked_ranges];
-                node->attributes.erase(attr_id::unpacked_ranges);
-            }
-            if (node->attributes.count(attr_id::is_simplified_wire)) {
-                delete node->attributes[attr_id::is_simplified_wire];
-                node->attributes.erase(attr_id::is_simplified_wire);
-            }
-        });
-    }
+    // Remove all internal attributes.
+    visitEachDescendant(current_node, [&](AST::AstNode *node) {
+        for (const auto &[id, ptr] : node->attributes) {
+            delete ptr;
+        }
+        node->attributes.clear();
+    });
 }
 
 void UhdmAst::simplify_parameter(AST::AstNode *parameter, AST::AstNode *module_node)
