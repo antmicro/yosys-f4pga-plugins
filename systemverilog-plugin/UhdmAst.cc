@@ -2472,9 +2472,6 @@ void UhdmAst::process_param_assign()
                 }
             }
             copy_packed_unpacked_attribute(node, current_node);
-            if (node->attributes.count(UhdmAst::is_imported())) {
-                current_node->attributes[UhdmAst::is_imported()] = node->attributes[UhdmAst::is_imported()]->clone();
-            }
             current_node->is_custom_type = node->is_custom_type;
             shared.param_types[current_node->str] = shared.param_types[node->str];
             delete node;
@@ -4262,10 +4259,6 @@ void UhdmAst::process_parameter()
     current_node = make_ast_node(type, {}, true);
     std::vector<AST::AstNode *> packed_ranges;   // comes before wire name
     std::vector<AST::AstNode *> unpacked_ranges; // comes after wire name
-    // currently unused, but save it for future use
-    if (const char *imported = vpi_get_str(vpiImported, obj_h); imported != nullptr && strlen(imported) > 0) {
-        current_node->attributes[UhdmAst::is_imported()] = AST::AstNode::mkconst_int(1, true);
-    }
     visit_one_to_many({vpiRange}, obj_h, [&](AST::AstNode *node) { unpacked_ranges.push_back(node); });
     vpiHandle typespec_h = vpi_handle(vpiTypespec, obj_h);
     if (typespec_h) {
