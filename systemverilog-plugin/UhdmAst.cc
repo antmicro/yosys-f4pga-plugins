@@ -524,8 +524,14 @@ static void convert_packed_unpacked_range(AST::AstNode *wire_node)
                                                           ? wire_node->attributes[UhdmAst::unpacked_ranges()]->children
                                                           : std::vector<AST::AstNode *>();
     if (packed_ranges.empty() && unpacked_ranges.empty()) {
-        wire_node->attributes.erase(UhdmAst::packed_ranges());
-        wire_node->attributes.erase(UhdmAst::unpacked_ranges());
+        if (wire_node->attributes.count(attr_id::packed_ranges)) {
+            delete wire_node->attributes[attr_id::packed_ranges];
+            wire_node->attributes.erase(attr_id::packed_ranges);
+        }
+        if (wire_node->attributes.count(attr_id::unpacked_ranges)) {
+            delete wire_node->attributes[attr_id::unpacked_ranges];
+            wire_node->attributes.erase(attr_id::unpacked_ranges);
+        }
         wire_node->range_left = 0;
         wire_node->range_right = 0;
         wire_node->range_valid = true;
