@@ -1919,8 +1919,10 @@ void UhdmAst::process_module()
             });
             visit_one_to_many({vpiModule, vpiParameter, vpiParamAssign, vpiNet, vpiArrayNet, vpiProcess}, obj_h, [&](AST::AstNode *node) {
                 if (node) {
-                    if (node->type == AST::AST_ASSIGN && node->children.size() < 2)
+                    if (node->type == AST::AST_ASSIGN && node->children.size() < 2) {
+                        delete node;
                         return;
+                    }
                     add_or_replace_child(current_node, node);
                 }
             });
