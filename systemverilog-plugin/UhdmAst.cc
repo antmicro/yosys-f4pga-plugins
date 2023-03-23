@@ -201,8 +201,7 @@ static void add_multirange_wire(AST::AstNode *node, std::vector<AST::AstNode *> 
     if (!packed_ranges.empty()) {
         if (reverse)
             std::reverse(packed_ranges.begin(), packed_ranges.end());
-        node->attributes[UhdmAst::packed_ranges()]->children.insert(node->attributes[UhdmAst::packed_ranges()]->children.end(), packed_ranges.begin(),
-                                                                    packed_ranges.end());
+        node->attributes[UhdmAst::packed_ranges()]->children = std::move(packed_ranges);
     }
 
     if (node->attributes.count(UhdmAst::unpacked_ranges()))
@@ -211,8 +210,7 @@ static void add_multirange_wire(AST::AstNode *node, std::vector<AST::AstNode *> 
     if (!unpacked_ranges.empty()) {
         if (reverse)
             std::reverse(unpacked_ranges.begin(), unpacked_ranges.end());
-        node->attributes[UhdmAst::unpacked_ranges()]->children.insert(node->attributes[UhdmAst::unpacked_ranges()]->children.end(),
-                                                                      unpacked_ranges.begin(), unpacked_ranges.end());
+        node->attributes[UhdmAst::unpacked_ranges()]->children = std::move(unpacked_ranges);
     }
 }
 
@@ -1587,7 +1585,7 @@ void UhdmAst::process_packed_array_typespec()
             delete node;
         }
     });
-    add_multirange_wire(current_node, packed_ranges, unpacked_ranges);
+    add_multirange_wire(current_node, std::move(packed_ranges), std::move(unpacked_ranges));
 }
 
 static void add_or_replace_child(AST::AstNode *parent, AST::AstNode *child)
