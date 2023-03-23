@@ -1059,6 +1059,7 @@ static void simplify(AST::AstNode *current_node, AST::AstNode *parent_node)
         current_node->children.clear();
         current_node->children.push_back(expanded->clone());
         current_node->basic_prep = true;
+        delete expanded;
         expanded = nullptr;
     }
     // First simplify children
