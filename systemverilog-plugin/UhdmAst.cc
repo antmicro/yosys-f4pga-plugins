@@ -1577,10 +1577,13 @@ void UhdmAst::process_packed_array_typespec()
         } else if (node) {
             current_node->str = node->str;
             if (node->type == AST::AST_ENUM && !node->children.empty()) {
-                for (auto c : node->children[0]->children) {
+                for (auto *c : node->children[0]->children) {
                     if (c->type == AST::AST_RANGE && c->str.empty())
-                        packed_ranges.push_back(c->clone());
+                        packed_ranges.push_back(c);
+                    else
+                        delete c;
                 }
+                node->children[0]->children.clear();
             }
             delete node;
         }
@@ -2466,9 +2469,12 @@ void UhdmAst::process_param_assign()
             // but we want to skip actual value, as it is set in rhs
             for (auto *c : node->children) {
                 if (c->type != AST::AST_CONSTANT) {
-                    current_node->children.push_back(c->clone());
+                    current_node->children.push_back(c);
+                } else {
+                    delete c;
                 }
             }
+            node->children.clear();
             copy_packed_unpacked_attribute(node, current_node);
             current_node->is_custom_type = node->is_custom_type;
             shared.param_types[current_node->str] = shared.param_types[node->str];
@@ -4310,8 +4316,9 @@ void UhdmAst::process_parameter()
                 current_node->is_custom_type = true;
                 auto it = shared.param_types.find(current_node->str);
                 if (it == shared.param_types.end())
-                    shared.param_types.insert(std::make_pair(current_node->str, node->clone()));
-                delete node;
+                    shared.param_types.insert(std::make_pair(current_node->str, node));
+                else
+                    delete node;
             });
             break;
         }
