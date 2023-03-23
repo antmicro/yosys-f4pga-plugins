@@ -2522,8 +2522,9 @@ void UhdmAst::process_cont_assign_net()
                 current_node->children.push_back(new AST::AstNode(AST::AST_IDENTIFIER));
                 current_node->children.back()->str = node->str;
             } else {
-                current_node->children.push_back(node);
+                current_node->children.push_back(node->clone());
             }
+            delete node;
         }
     });
 }
