@@ -303,6 +303,7 @@ static AST::AstNode *convert_range(AST::AstNode *id, const std::vector<AST::AstN
                            new AST::AstNode(AST::AST_MUL, new AST::AstNode(AST::AST_ADD, range_left, AST::AstNode::mkconst_int(1, false)),
                                             AST::AstNode::mkconst_int(single_elem_size[i + 1], false)),
                            AST::AstNode::mkconst_int(1, false));
+        // TODO(wsip) range_right is allocated and lost
         range_right = new AST::AstNode(AST::AST_MUL, range_right, AST::AstNode::mkconst_int(single_elem_size[i + 1], false));
         if (result) {
             range_right = new AST::AstNode(AST::AST_ADD, range_right->clone(), result->children[1]->clone());
@@ -2501,6 +2502,7 @@ void UhdmAst::process_cont_assign_var_init()
             if (node->type == AST::AST_WIRE || node->type == AST::AST_PARAMETER || node->type == AST::AST_LOCALPARAM) {
                 assign_node->children.push_back(new AST::AstNode(AST::AST_IDENTIFIER));
                 assign_node->children.back()->str = node->str;
+                delete node;
             } else {
                 assign_node->children.push_back(node);
             }
