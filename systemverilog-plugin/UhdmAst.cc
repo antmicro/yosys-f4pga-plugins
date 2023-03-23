@@ -1168,7 +1168,8 @@ static void simplify(AST::AstNode *current_node, AST::AstNode *parent_node)
                 current_node->children.push_back(AST::AstNode::mkconst_int(i, false, range));
             }
             current_node->children.push_back(result);
-            current_node->attributes.erase(UhdmAst::low_high_bound());
+            delete current_node->attributes[attr_id::low_high_bound];
+            current_node->attributes.erase(attr_id::low_high_bound);
         }
         break;
     default:
