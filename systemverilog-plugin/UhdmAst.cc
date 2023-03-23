@@ -663,6 +663,7 @@ static AST::AstNode *expand_dot(const AST::AstNode *current_struct, const AST::A
         delete right;
         left = sub_dot->children[0];
         right = sub_dot->children[1];
+        // TODO(wsip) should sub_dot be deleted?
     }
     if (struct_range) {
         // now we have correct element set,
@@ -1584,6 +1585,7 @@ void UhdmAst::process_packed_array_typespec()
 
 static void add_or_replace_child(AST::AstNode *parent, AST::AstNode *child)
 {
+    // TODO(wsip) make sure that `child` is used/assigned somewhere or deleted
     if (!child->str.empty()) {
         auto it = std::find_if(parent->children.begin(), parent->children.end(),
                                [child](AST::AstNode *existing_child) { return existing_child->str == child->str; });
@@ -3799,7 +3801,7 @@ void UhdmAst::process_tagged_pattern()
     AST::AstNode *lhs_node = nullptr;
     if (assign_node) {
         assign_type = assign_node->type;
-        lhs_node = assign_node->children[0];
+        lhs_node = assign_node->children[0]->clone();
     } else {
         lhs_node = new AST::AstNode(AST::AST_IDENTIFIER);
         auto ancestor = find_ancestor({AST::AST_WIRE, AST::AST_MEMORY, AST::AST_PARAMETER, AST::AST_LOCALPARAM});
@@ -3809,7 +3811,7 @@ void UhdmAst::process_tagged_pattern()
         lhs_node->str = ancestor->str;
     }
     current_node = new AST::AstNode(assign_type);
-    current_node->children.push_back(lhs_node->clone());
+    current_node->children.push_back(lhs_node);
     auto typespec_h = vpi_handle(vpiTypespec, obj_h);
     if (vpi_get(vpiType, typespec_h) == vpiStringTypespec) {
         std::string field_name = vpi_get_str(vpiName, typespec_h);
