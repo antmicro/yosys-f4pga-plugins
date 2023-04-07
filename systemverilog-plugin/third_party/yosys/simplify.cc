@@ -197,7 +197,7 @@ static int size_packed_struct(Yosys::AST::AstNode *snode, int base_offset, AST::
 		int width;
 		if (node->type == Yosys::AST::AST_STRUCT || node->type == Yosys::AST::AST_UNION) {
 			// embedded struct or union
-			width = size_packed_struct(node, base_offset + offset);
+			width = size_packed_struct(node, base_offset + offset, parent_node);
 			// set range of struct
 			node->range_right = base_offset + offset;
 			node->range_left = base_offset + offset + width - 1;
@@ -560,7 +560,7 @@ static inline std::string encode_filename(const std::string &filename)
 //
 // this function also does all name resolving and sets the id2ast member of all
 // nodes that link to a different node using names and lexical scoping.
-bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool in_lvalue, int stage, int width_hint, bool sign_hint, bool in_param)
+bool simplify(Yosys::AST::AstNode *ast_node, AST::AstNode *parent_node, bool const_fold, bool at_zero, bool in_lvalue, int stage, int width_hint, bool sign_hint, bool in_param)
 {
 	static int recursion_counter = 0;
 	static bool deep_recursion_warning = false;
@@ -588,7 +588,7 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 		log_assert(ast_node->type == Yosys::AST::AST_MODULE || ast_node->type == Yosys::AST::AST_INTERFACE);
 
 		deep_recursion_warning = true;
-		while (simplify(ast_node, const_fold, at_zero, in_lvalue, 1, width_hint, sign_hint, in_param)) { }
+		while (simplify(ast_node, parent_node, const_fold, at_zero, in_lvalue, 1, width_hint, sign_hint, in_param)) { }
 
 		if (!flag_nomem2reg && !ast_node->get_bool_attribute(ID::nomem2reg))
 		{
@@ -671,7 +671,7 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 					reg->filename = node->filename;
 					reg->location = node->location;
 					ast_node->children.push_back(reg);
-					while (simplify(reg, true, false, false, 1, -1, false, false)) { } // <- not sure about reg being the first arg here...
+					while (simplify(reg, parent_node, true, false, false, 1, -1, false, false)) { } // <- not sure about reg being the first arg here...
 				}
 			}
 
@@ -685,7 +685,7 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 				delete node;
 		}
 
-		while (simplify(ast_node, const_fold, at_zero, in_lvalue, 2, width_hint, sign_hint, in_param)) { }
+		while (simplify(ast_node, parent_node, const_fold, at_zero, in_lvalue, 2, width_hint, sign_hint, in_param)) { }
 		recursion_counter--;
 		return false;
 	}
@@ -726,7 +726,7 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 
 		// First argument is the format string
 		Yosys::AST::AstNode *node_string = ast_node->children[0];
-		while (simplify(node_string, true, false, false, stage, width_hint, sign_hint, false)) { }
+		while (simplify(node_string, parent_node, true, false, false, stage, width_hint, sign_hint, false)) { }
 		if (node_string->type != Yosys::AST::AST_CONSTANT)
 			log_file_error(ast_node->filename, ast_node->location.first_line, "Failed to evaluate system task `%s' with non-constant 1st argument.\n", ast_node->str.c_str());
 		std::string sformat = node_string->bitsAsConst().decode_string();
@@ -851,12 +851,12 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 		for (size_t i = 0; i < ast_node->children.size(); i++) {
 			Yosys::AST::AstNode *node = ast_node->children[i];
 			if (node->type == Yosys::AST::AST_PARAMETER || node->type == Yosys::AST::AST_LOCALPARAM || node->type == Yosys::AST::AST_WIRE || node->type == Yosys::AST::AST_AUTOWIRE || node->type == Yosys::AST::AST_MEMORY || node->type == Yosys::AST::AST_TYPEDEF)
-				while (simplify(node, true, false, false, 1, -1, false, node->type == Yosys::AST::AST_PARAMETER || node->type == Yosys::AST::AST_LOCALPARAM))
+				while (simplify(node, parent_node, true, false, false, 1, -1, false, node->type == Yosys::AST::AST_PARAMETER || node->type == Yosys::AST::AST_LOCALPARAM))
 					did_something = true;
 			if (node->type == Yosys::AST::AST_ENUM) {
 				for (auto enode : node->children){
 					log_assert(enode->type==Yosys::AST::AST_ENUM_ITEM);
-					while (simplify(node, true, false, false, 1, -1, false, in_param))
+					while (simplify(node, parent_node, true, false, false, 1, -1, false, in_param))
 						did_something = true;
 				}
 			}
@@ -921,7 +921,7 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 		for (Yosys::AST::AstNode *child : ast_node->children) {
 			// simplify any parameters to constants
 			if (child->type == Yosys::AST::AST_PARASET)
-				while (simplify(child, true, false, false, 1, -1, false, true)) { }
+				while (simplify(child, ast_node, true, false, false, 1, -1, false, true)) { }
 
 			// look for patterns which _may_ indicate ambiguity requiring
 			// resolution of the underlying module
@@ -1037,9 +1037,9 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 	case Yosys::AST::AST_ASSIGN_EQ:
 	case Yosys::AST::AST_ASSIGN_LE:
 	case Yosys::AST::AST_ASSIGN:
-		while (!ast_node->children[0]->basic_prep && simplify(ast_node->children[0], false, false, true, stage, -1, false, in_param) == true)
+		while (!ast_node->children[0]->basic_prep && simplify(ast_node->children[0], ast_node, false, false, true, stage, -1, false, in_param) == true)
 			did_something = true;
-		while (!ast_node->children[1]->basic_prep && simplify(ast_node->children[1], false, false, false, stage, -1, false, in_param) == true)
+		while (!ast_node->children[1]->basic_prep && simplify(ast_node->children[1], ast_node, false, false, false, stage, -1, false, in_param) == true)
 			did_something = true;
 		ast_node->children[0]->detectSignWidth(backup_width_hint, backup_sign_hint);
 		ast_node->children[1]->detectSignWidth(width_hint, sign_hint);
@@ -1075,12 +1075,12 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 		if (!ast_node->basic_prep) {
 			for (auto *node : ast_node->children) {
 				// resolve any ranges
-				while (!node->basic_prep && simplify(node, true, false, false, stage, -1, false, false)) {
+				while (!node->basic_prep && simplify(node, ast_node, true, false, false, stage, -1, false, false)) {
 					did_something = true;
 				}
 			}
 			// determine member offsets and widths
-			size_packed_struct(ast_node, 0);
+			size_packed_struct(ast_node, 0, parent_node);
 
 			// instance rather than just a type in a typedef or outer struct?
 			if (!ast_node->str.empty() && ast_node->str[0] == '\\') {
@@ -1100,7 +1100,7 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 		//log("\nENUM %s: %d child %d\n", ast_node->str.c_str(), ast_node->basic_prep, ast_node->children[0]->basic_prep);
 		if (!ast_node->basic_prep) {
 			for (auto item_node : ast_node->children) {
-				while (!item_node->basic_prep && simplify(item_node, false, false, false, stage, -1, false, in_param))
+				while (!item_node->basic_prep && simplify(item_node, ast_node, false, false, false, stage, -1, false, in_param))
 					did_something = true;
 			}
 			// allocate values (called more than once)
@@ -1116,15 +1116,15 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 			auto item_node = current_scope[ast_node->children[0]->str];
 			if (item_node->type == Yosys::AST::AST_STRUCT || item_node->type == Yosys::AST::AST_UNION) {
 				ast_node->attributes[ID::wiretype] = item_node->clone();
-				size_packed_struct(ast_node->attributes[ID::wiretype], 0);
+				size_packed_struct(ast_node->attributes[ID::wiretype], 0, ast_node);
 				add_members_to_scope(ast_node->attributes[ID::wiretype], ast_node->str);
 			}
 		}
-		while (!ast_node->children[0]->basic_prep && simplify(ast_node->children[0], false, false, false, stage, -1, false, true) == true)
+		while (!ast_node->children[0]->basic_prep && simplify(ast_node->children[0], ast_node, false, false, false, stage, -1, false, true) == true)
 			did_something = true;
 		ast_node->children[0]->detectSignWidth(width_hint, sign_hint);
 		if (ast_node->children.size() > 1 && ast_node->children[1]->type == Yosys::AST::AST_RANGE) {
-			while (!ast_node->children[1]->basic_prep && simplify(ast_node->children[1], false, false, false, stage, -1, false, true) == true)
+			while (!ast_node->children[1]->basic_prep && simplify(ast_node->children[1], ast_node, false, false, false, stage, -1, false, true) == true)
 				did_something = true;
 			if (!ast_node->children[1]->range_valid)
 				log_file_error(ast_node->filename, ast_node->location.first_line, "Non-constant width range on parameter decl.\n");
@@ -1132,11 +1132,11 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 		}
 		break;
 	case Yosys::AST::AST_ENUM_ITEM:
-		while (!ast_node->children[0]->basic_prep && simplify(ast_node->children[0], false, false, false, stage, -1, false, in_param))
+		while (!ast_node->children[0]->basic_prep && simplify(ast_node->children[0], ast_node, false, false, false, stage, -1, false, in_param))
 			did_something = true;
 		ast_node->children[0]->detectSignWidth(width_hint, sign_hint);
 		if (ast_node->children.size() > 1 && ast_node->children[1]->type == Yosys::AST::AST_RANGE) {
-			while (!ast_node->children[1]->basic_prep && simplify(ast_node->children[1], false, false, false, stage, -1, false, in_param))
+			while (!ast_node->children[1]->basic_prep && simplify(ast_node->children[1], ast_node, false, false, false, stage, -1, false, in_param))
 				did_something = true;
 			if (!ast_node->children[1]->range_valid)
 				log_file_error(ast_node->filename, ast_node->location.first_line, "Non-constant width range on enum item decl.\n");
@@ -1195,7 +1195,7 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 		width_hint = -1;
 		sign_hint = true;
 		for (auto child : ast_node->children) {
-			while (!child->basic_prep && simplify(child, false, false, in_lvalue, stage, -1, false, in_param) == true)
+			while (!child->basic_prep && simplify(child, ast_node, false, false, in_lvalue, stage, -1, false, in_param) == true)
 				did_something = true;
 			child->detectSignWidthWorker(width_hint, sign_hint);
 		}
@@ -1230,10 +1230,10 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 
 	if (detect_width_simple && width_hint < 0) {
 		if (ast_node->type == Yosys::AST::AST_REPLICATE)
-			while (simplify(ast_node->children[0], true, false, in_lvalue, stage, -1, false, true) == true)
+			while (simplify(ast_node->children[0], ast_node, true, false, in_lvalue, stage, -1, false, true) == true)
 				did_something = true;
 		for (auto child : ast_node->children)
-			while (!child->basic_prep && simplify(child, false, false, in_lvalue, stage, -1, false, in_param) == true)
+			while (!child->basic_prep && simplify(child, ast_node, false, false, in_lvalue, stage, -1, false, in_param) == true)
 				did_something = true;
 		ast_node->detectSignWidth(width_hint, sign_hint);
 	}
@@ -1243,18 +1243,18 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 
 	if (ast_node->type == Yosys::AST::AST_TERNARY) {
 		if (width_hint < 0) {
-			while (!ast_node->children[0]->basic_prep && simplify(ast_node->children[0], true, false, in_lvalue, stage, -1, false, in_param))
+			while (!ast_node->children[0]->basic_prep && simplify(ast_node->children[0], ast_node, true, false, in_lvalue, stage, -1, false, in_param))
 				did_something = true;
 
 			bool backup_unevaluated_tern_branch = unevaluated_tern_branch;
 			Yosys::AST::AstNode *chosen = ast_node->get_tern_choice().first;
 
 			unevaluated_tern_branch = backup_unevaluated_tern_branch || chosen == ast_node->children[2];
-			while (!ast_node->children[1]->basic_prep && simplify(ast_node->children[1], false, false, in_lvalue, stage, -1, false, in_param))
+			while (!ast_node->children[1]->basic_prep && simplify(ast_node->children[1], ast_node, false, false, in_lvalue, stage, -1, false, in_param))
 				did_something = true;
 
 			unevaluated_tern_branch = backup_unevaluated_tern_branch || chosen == ast_node->children[1];
-			while (!ast_node->children[2]->basic_prep && simplify(ast_node->children[2], false, false, in_lvalue, stage, -1, false, in_param))
+			while (!ast_node->children[2]->basic_prep && simplify(ast_node->children[2], ast_node, false, false, in_lvalue, stage, -1, false, in_param))
 				did_something = true;
 
 			unevaluated_tern_branch = backup_unevaluated_tern_branch;
@@ -1286,7 +1286,7 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 	if (const_fold && ast_node->type == Yosys::AST::AST_CASE)
 	{
 		ast_node->detectSignWidth(width_hint, sign_hint);
-		while (simplify(ast_node->children[0], const_fold, at_zero, in_lvalue, stage, width_hint, sign_hint, in_param)) { }
+		while (simplify(ast_node->children[0], ast_node, const_fold, at_zero, in_lvalue, stage, width_hint, sign_hint, in_param)) { }
 		if (ast_node->children[0]->type == Yosys::AST::AST_CONSTANT && ast_node->children[0]->bits_only_01()) {
 			ast_node->children[0]->is_signed = sign_hint;
 			RTLIL::Const case_expr = ast_node->children[0]->bitsAsConst(width_hint, sign_hint);
@@ -1300,7 +1300,7 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 						goto keep_const_cond;
 					if (v->type == Yosys::AST::AST_BLOCK)
 						continue;
-					while (simplify(v, const_fold, at_zero, in_lvalue, stage, width_hint, sign_hint, in_param)) { }
+					while (simplify(v, ast_node, const_fold, at_zero, in_lvalue, stage, width_hint, sign_hint, in_param)) { }
 					if (v->type == Yosys::AST::AST_CONSTANT && v->bits_only_01()) {
 						RTLIL::Const case_item_expr = v->bitsAsConst(width_hint, sign_hint);
 						RTLIL::Const match = const_eq(case_expr, case_item_expr, sign_hint, sign_hint, 1);
@@ -1385,7 +1385,7 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 				width_hint_here = -1, sign_hint_here = false;
 			if (children_are_self_determined)
 				width_hint_here = -1, sign_hint_here = false;
-			did_something_here = simplify(ast_node->children[i], const_fold_here, at_zero, in_lvalue_here, stage, width_hint_here, sign_hint_here, in_param_here);
+			did_something_here = simplify(ast_node->children[i], ast_node, const_fold_here, at_zero, in_lvalue_here, stage, width_hint_here, sign_hint_here, in_param_here);
 			if (did_something_here)
 				did_something = true;
 		}
@@ -1405,7 +1405,7 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 		}
 	}
 	for (auto &attr : ast_node->attributes) {
-		while (simplify(attr.second, true, false, false, stage, -1, false, true))
+		while (simplify(attr.second, ast_node, true, false, false, stage, -1, false, true))
 			did_something = true;
 	}
 	if (ast_node->type == Yosys::AST::AST_CASE && stage == 2) {
@@ -1483,7 +1483,7 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 		log_assert(ast_node->children.size() == 1);
 		auto type_node = ast_node->children[0];
 		log_assert(type_node->type == Yosys::AST::AST_WIRE || type_node->type == Yosys::AST::AST_MEMORY || type_node->type == Yosys::AST::AST_STRUCT || type_node->type == Yosys::AST::AST_UNION);
-		while (simplify(type_node, const_fold, at_zero, in_lvalue, stage, width_hint, sign_hint, in_param)) {
+		while (simplify(type_node, ast_node, const_fold, at_zero, in_lvalue, stage, width_hint, sign_hint, in_param)) {
 			did_something = true;
 		}
 		log_assert(!type_node->is_custom_type);
@@ -1505,7 +1505,7 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 			Yosys::AST::AstNode *template_node = resolved_type_node->children[0];
 
 			// Ensure typedef itself is fully simplified
-			while (simplify(template_node, const_fold, at_zero, in_lvalue, stage, width_hint, sign_hint, in_param)) {};
+			while (simplify(template_node, resolved_type_node, const_fold, at_zero, in_lvalue, stage, width_hint, sign_hint, in_param)) {};
 
 			if (template_node->type == Yosys::AST::AST_STRUCT || template_node->type == Yosys::AST::AST_UNION) {
 				// replace with wire representing the packed structure
@@ -1570,7 +1570,7 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 			Yosys::AST::AstNode *template_node = resolved_type_node->children[0];
 
 			// Ensure typedef itself is fully simplified
-			while (simplify(template_node, const_fold, at_zero, in_lvalue, stage, width_hint, sign_hint, in_param)) {};
+			while (simplify(template_node, resolved_type_node, const_fold, at_zero, in_lvalue, stage, width_hint, sign_hint, in_param)) {};
 
 			if (template_node->type == Yosys::AST::AST_STRUCT || template_node->type == Yosys::AST::AST_UNION) {
 				// replace with wire representing the packed structure
@@ -1612,7 +1612,7 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 			log_file_error(ast_node->filename, ast_node->location.first_line, "Index in generate block prefix syntax is not constant!\n");
 		}
 		if (ast_node->children[1]->type == Yosys::AST::AST_PREFIX)
-			simplify(ast_node->children[1], const_fold, at_zero, in_lvalue, stage, width_hint, sign_hint, in_param);
+			simplify(ast_node->children[1], ast_node, const_fold, at_zero, in_lvalue, stage, width_hint, sign_hint, in_param);
 		log_assert(ast_node->children[1]->type == Yosys::AST::AST_IDENTIFIER);
 		newNode = ast_node->children[1]->clone();
 		const char *second_part = ast_node->children[1]->str.c_str();
@@ -1902,7 +1902,7 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 		if (current_block)
 			wire->attributes[ID::nosync] = ast_node->mkconst_int(1, false);
 		current_ast_mod->children.push_back(wire);
-		while (simplify(wire, true, false, false, 1, -1, false, false)) { }
+		while (simplify(wire, nullptr, true, false, false, 1, -1, false, false)) { }
 
 		Yosys::AST::AstNode *data = ast_node->clone();
 		delete data->children[1];
@@ -1944,7 +1944,7 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 		Yosys::AST::AstNode *body = ast_node->children[1];
 
 		// eval count expression
-		while (simplify(count, true, false, false, stage, 32, true, false)) { }
+		while (simplify(count, ast_node, true, false, false, stage, 32, true, false)) { }
 
 		if (count->type != Yosys::AST::AST_CONSTANT)
 			log_file_error(ast_node->filename, ast_node->location.first_line, "Repeat loops outside must have constant repeat counts!\n");
@@ -2000,7 +2000,7 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 			int expr_width_hint = -1;
 			bool expr_sign_hint = true;
 			varbuf->detectSignWidth(expr_width_hint, expr_sign_hint);
-			while (simplify(varbuf, true, false, false, stage, 32, true, false)) { }
+			while (simplify(varbuf, init_ast, true, false, false, stage, 32, true, false)) { }
 		}
 
 		if (varbuf->type != Yosys::AST::AST_CONSTANT)
@@ -2041,7 +2041,7 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 				int expr_width_hint = -1;
 				bool expr_sign_hint = true;
 				buf->detectSignWidth(expr_width_hint, expr_sign_hint);
-				while (simplify(buf, true, false, false, stage, expr_width_hint, expr_sign_hint, false)) { }
+				while (simplify(buf, while_ast, true, false, false, stage, expr_width_hint, expr_sign_hint, false)) { }
 			}
 
 			if (buf->type != Yosys::AST::AST_CONSTANT)
@@ -2076,7 +2076,7 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 
 			if (ast_node->type == Yosys::AST::AST_GENFOR) {
 				for (size_t i = 0; i < buf->children.size(); i++) {
-					simplify(buf->children[i], const_fold, false, false, stage, -1, false, false);
+					simplify(buf->children[i], buf, const_fold, false, false, stage, -1, false, false);
 					current_ast_mod->children.push_back(buf->children[i]);
 				}
 			} else {
@@ -2092,7 +2092,7 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 				int expr_width_hint = -1;
 				bool expr_sign_hint = true;
 				buf->detectSignWidth(expr_width_hint, expr_sign_hint);
-				while (simplify(buf, true, false, false, stage, expr_width_hint, expr_sign_hint, true)) { }
+				while (simplify(buf, next_ast, true, false, false, stage, expr_width_hint, expr_sign_hint, true)) { }
 			}
 
 			if (buf->type != Yosys::AST::AST_CONSTANT)
@@ -2144,7 +2144,7 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 		std::vector<Yosys::AST::AstNode*> new_children;
 		for (size_t i = 0; i < ast_node->children.size(); i++)
 			if (ast_node->children[i]->type == Yosys::AST::AST_WIRE || ast_node->children[i]->type == Yosys::AST::AST_MEMORY || ast_node->children[i]->type == Yosys::AST::AST_PARAMETER || ast_node->children[i]->type == Yosys::AST::AST_LOCALPARAM || ast_node->children[i]->type == Yosys::AST::AST_TYPEDEF) {
-				simplify(ast_node->children[i], false, false, false, stage, -1, false, false);
+				simplify(ast_node->children[i], ast_node, false, false, false, stage, -1, false, false);
 				current_ast_mod->children.push_back(ast_node->children[i]);
 				current_scope[ast_node->children[i]->str] = ast_node->children[i];
 			} else
@@ -2163,7 +2163,7 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 		}
 
 		for (size_t i = 0; i < ast_node->children.size(); i++) {
-			simplify(ast_node->children[i], const_fold, false, false, stage, -1, false, false);
+			simplify(ast_node->children[i], ast_node, const_fold, false, false, stage, -1, false, false);
 			current_ast_mod->children.push_back(ast_node->children[i]);
 		}
 
@@ -2175,7 +2175,7 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 	if (ast_node->type == Yosys::AST::AST_GENIF && ast_node->children.size() != 0)
 	{
 		Yosys::AST::AstNode *buf = ast_node->children[0]->clone();
-		while (simplify(buf, true, false, false, stage, width_hint, sign_hint, false)) { }
+		while (simplify(buf, ast_node, true, false, false, stage, width_hint, sign_hint, false)) { }
 		if (buf->type != Yosys::AST::AST_CONSTANT) {
 			// for (auto f : log_files)
 			// 	dumpAst(f, "verilog-ast> ");
@@ -2199,7 +2199,7 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 			}
 
 			for (size_t i = 0; i < buf->children.size(); i++) {
-				simplify(buf->children[i], const_fold, false, false, stage, -1, false, false);
+				simplify(buf->children[i], buf, const_fold, false, false, stage, -1, false, false);
 				current_ast_mod->children.push_back(buf->children[i]);
 			}
 
@@ -2215,7 +2215,7 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 	if (ast_node->type == Yosys::AST::AST_GENCASE && ast_node->children.size() != 0)
 	{
 		Yosys::AST::AstNode *buf = ast_node->children[0]->clone();
-		while (simplify(buf, true, false, false, stage, width_hint, sign_hint, false)) { }
+		while (simplify(buf, ast_node, true, false, false, stage, width_hint, sign_hint, false)) { }
 		if (buf->type != Yosys::AST::AST_CONSTANT) {
 			// for (auto f : log_files)
 			// 	dumpAst(f, "verilog-ast> ");
@@ -2249,7 +2249,7 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 					continue;
 
 				buf = child->clone();
-				while (simplify(buf, true, false, false, stage, width_hint, sign_hint, true)) { }
+				while (simplify(buf, ast_node, true, false, false, stage, width_hint, sign_hint, true)) { }
 				if (buf->type != Yosys::AST::AST_CONSTANT) {
 					// for (auto f : log_files)
 					// 	dumpAst(f, "verilog-ast> ");
@@ -2277,7 +2277,7 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 			}
 
 			for (size_t i = 0; i < buf->children.size(); i++) {
-				simplify(buf->children[i], const_fold, false, false, stage, -1, false, false);
+				simplify(buf->children[i], buf, const_fold, false, false, stage, -1, false, false);
 				current_ast_mod->children.push_back(buf->children[i]);
 			}
 
@@ -2442,8 +2442,8 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 			shift_expr = range->children[1]->clone();
 			Yosys::AST::AstNode *left_at_zero_ast = range->children[0]->clone();
 			Yosys::AST::AstNode *right_at_zero_ast = range->children[1]->clone();
-			while (simplify(left_at_zero_ast, true, true, false, stage, -1, false, false)) { }
-			while (simplify(right_at_zero_ast, true, true, false, stage, -1, false, false)) { }
+			while (simplify(left_at_zero_ast, range, true, true, false, stage, -1, false, false)) { }
+			while (simplify(right_at_zero_ast, range, true, true, false, stage, -1, false, false)) { }
 			if (left_at_zero_ast->type != Yosys::AST::AST_CONSTANT || right_at_zero_ast->type != Yosys::AST::AST_CONSTANT)
 				log_file_error(ast_node->filename, ast_node->location.first_line, "Unsupported expression on dynamic range select on signal `%s'!\n", ast_node->str.c_str());
 			result_width = abs(int(left_at_zero_ast->integer - right_at_zero_ast->integer)) + 1;
@@ -2455,7 +2455,7 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 
 		if (ast_node->children[0]->id2ast->attributes.count(ID::nowrshmsk)) {
 			Yosys::AST::AstNode *node = ast_node->children[0]->id2ast->attributes.at(ID::nowrshmsk);
-			while (simplify(node, true, false, false, stage, -1, false, false)) { }
+			while (simplify(node, ast_node->children[0]->id2ast, true, false, false, stage, -1, false, false)) { }
 			if (node->type != Yosys::AST::AST_CONSTANT)
 				log_file_error(ast_node->filename, ast_node->location.first_line, "Non-constant value for `nowrshmsk' attribute on `%s'!\n", ast_node->children[0]->id2ast->str.c_str());
 			if (node->asAttrConst().as_bool())
@@ -2493,14 +2493,14 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 			wire_mask->str = stringf("$bitselwrite$mask$%s:%d$%d", encode_filename(ast_node->filename).c_str(), ast_node->location.first_line, autoidx++);
 			wire_mask->attributes[ID::nosync] = ast_node->mkconst_int(1, false);
 			wire_mask->is_logic = true;
-			while (simplify(wire_mask, true, false, false, 1, -1, false, false)) { }
+			while (simplify(wire_mask, nullptr, true, false, false, 1, -1, false, false)) { }
 			current_ast_mod->children.push_back(wire_mask);
 
 			Yosys::AST::AstNode *wire_data = new Yosys::AST::AstNode(Yosys::AST::AST_WIRE, new Yosys::AST::AstNode(Yosys::AST::AST_RANGE, ast_node->mkconst_int(source_width-1, true), ast_node->mkconst_int(0, true)));
 			wire_data->str = stringf("$bitselwrite$data$%s:%d$%d", encode_filename(ast_node->filename).c_str(), ast_node->location.first_line, autoidx++);
 			wire_data->attributes[ID::nosync] = ast_node->mkconst_int(1, false);
 			wire_data->is_logic = true;
-			while (simplify(wire_data, true, false, false, 1, -1, false, false)) { }
+			while (simplify(wire_data, nullptr, true, false, false, 1, -1, false, false)) { }
 			current_ast_mod->children.push_back(wire_data);
 
 			int shamt_width_hint = -1;
@@ -2512,7 +2512,7 @@ bool simplify(Yosys::AST::AstNode *ast_node, bool const_fold, bool at_zero, bool
 			wire_sel->attributes[ID::nosync] = ast_node->mkconst_int(1, false);
 			wire_sel->is_logic = true;
 			wire_sel->is_signed = shamt_sign_hint;
-			while (simplify(wire_sel, true, false, false, 1, -1, false, false)) { }
+			while (simplify(wire_sel, nullptr, true, false, false, 1, -1, false, false)) { }
 			current_ast_mod->children.push_back(wire_sel);
 
 			did_something = true;
@@ -2595,7 +2595,7 @@ skip_dynamic_range_lvalue_expansion:;
 		wire_check->was_checked = true;
 		current_ast_mod->children.push_back(wire_check);
 		current_scope[wire_check->str] = wire_check;
-		while (simplify(wire_check, true, false, false, 1, -1, false, false)) { }
+		while (simplify(wire_check, nullptr, true, false, false, 1, -1, false, false)) { }
 
 		Yosys::AST::AstNode *wire_en = new Yosys::AST::AstNode(Yosys::AST::AST_WIRE);
 		wire_en->str = id_en;
@@ -2607,7 +2607,7 @@ skip_dynamic_range_lvalue_expansion:;
 			current_ast_mod->children.back()->children[0]->children[0]->children[0]->was_checked = true;
 		}
 		current_scope[wire_en->str] = wire_en;
-		while (simplify(wire_en, true, false, false, 1, -1, false, false)) { }
+		while (simplify(wire_en, nullptr, true, false, false, 1, -1, false, false)) { }
 
 		Yosys::AST::AstNode *check_defval;
 		if (ast_node->type == Yosys::AST::AST_LIVE || ast_node->type == Yosys::AST::AST_FAIR) {
@@ -2700,7 +2700,7 @@ skip_dynamic_range_lvalue_expansion:;
 			current_ast_mod->children.push_back(wire_tmp);
 			current_scope[wire_tmp->str] = wire_tmp;
 			wire_tmp->attributes[ID::nosync] = ast_node->mkconst_int(1, false);
-			while (simplify(wire_tmp, true, false, false, 1, -1, false, false)) { }
+			while (simplify(wire_tmp, nullptr, true, false, false, 1, -1, false, false)) { }
 			wire_tmp->is_logic = true;
 
 			Yosys::AST::AstNode *wire_tmp_id = new Yosys::AST::AstNode(Yosys::AST::AST_IDENTIFIER);
@@ -2770,7 +2770,7 @@ skip_dynamic_range_lvalue_expansion:;
 			wire_addr->was_checked = true;
 			current_ast_mod->children.push_back(wire_addr);
 			current_scope[wire_addr->str] = wire_addr;
-			while (simplify(wire_addr, true, false, false, 1, -1, false, false)) { }
+			while (simplify(wire_addr, nullptr, true, false, false, 1, -1, false, false)) { }
 
 			Yosys::AST::AstNode *assign_addr = new Yosys::AST::AstNode(Yosys::AST::AST_ASSIGN_EQ, new Yosys::AST::AstNode(Yosys::AST::AST_IDENTIFIER), Yosys::AST::AstNode::mkconst_bits(x_bits_addr, false));
 			assign_addr->children[0]->str = id_addr;
@@ -2796,7 +2796,7 @@ skip_dynamic_range_lvalue_expansion:;
 			wire_data->is_signed = mem_signed;
 			current_ast_mod->children.push_back(wire_data);
 			current_scope[wire_data->str] = wire_data;
-			while (simplify(wire_data, true, false, false, 1, -1, false, false)) { }
+			while (simplify(wire_data, nullptr, true, false, false, 1, -1, false, false)) { }
 
 			Yosys::AST::AstNode *assign_data = new Yosys::AST::AstNode(Yosys::AST::AST_ASSIGN_EQ, new Yosys::AST::AstNode(Yosys::AST::AST_IDENTIFIER), Yosys::AST::AstNode::mkconst_bits(x_bits_data, false));
 			assign_data->children[0]->str = id_data;
@@ -2812,7 +2812,7 @@ skip_dynamic_range_lvalue_expansion:;
 		wire_en->was_checked = true;
 		current_ast_mod->children.push_back(wire_en);
 		current_scope[wire_en->str] = wire_en;
-		while (simplify(wire_en, true, false, false, 1, -1, false, false)) { }
+		while (simplify(wire_en, nullptr, true, false, false, 1, -1, false, false)) { }
 
 		Yosys::AST::AstNode *assign_en_first = new Yosys::AST::AstNode(Yosys::AST::AST_ASSIGN_EQ, new Yosys::AST::AstNode(Yosys::AST::AST_IDENTIFIER), ast_node->mkconst_int(0, false, mem_width));
 		assign_en_first->children[0]->str = id_en;
@@ -2860,8 +2860,8 @@ skip_dynamic_range_lvalue_expansion:;
 				if (mem_data_range_offset)
 					offset_ast = new Yosys::AST::AstNode(Yosys::AST::AST_SUB, offset_ast, ast_node->mkconst_int(mem_data_range_offset, true));
 
-				while (simplify(left_at_zero_ast, true, true, false, 1, -1, false, false)) { }
-				while (simplify(right_at_zero_ast, true, true, false, 1, -1, false, false)) { }
+				while (simplify(left_at_zero_ast, the_range, true, true, false, 1, -1, false, false)) { }
+				while (simplify(right_at_zero_ast, the_range, true, true, false, 1, -1, false, false)) { }
 				if (left_at_zero_ast->type != Yosys::AST::AST_CONSTANT || right_at_zero_ast->type != Yosys::AST::AST_CONSTANT)
 					log_file_error(ast_node->filename, ast_node->location.first_line, "Unsupported expression on dynamic range select on signal `%s'!\n", ast_node->str.c_str());
 				int width = abs(int(left_at_zero_ast->integer - right_at_zero_ast->integer)) + 1;
@@ -2942,7 +2942,7 @@ skip_dynamic_range_lvalue_expansion:;
 				Yosys::AST::AstNode *wire = new Yosys::AST::AstNode(Yosys::AST::AST_WIRE);
 				wire->str = stringf("$initstate$%d_wire", myidx);
 				current_ast_mod->children.push_back(wire);
-				while (simplify(wire, true, false, false, 1, -1, false, false)) { }
+				while (simplify(wire, nullptr, true, false, false, 1, -1, false, false)) { }
 
 				Yosys::AST::AstNode *cell = new Yosys::AST::AstNode(Yosys::AST::AST_CELL, new Yosys::AST::AstNode(Yosys::AST::AST_CELLTYPE), new Yosys::AST::AstNode(Yosys::AST::AST_ARGUMENT, new Yosys::AST::AstNode(Yosys::AST::AST_IDENTIFIER)));
 				cell->str = stringf("$initstate$%d", myidx);
@@ -2951,7 +2951,7 @@ skip_dynamic_range_lvalue_expansion:;
 				cell->children[1]->children[0]->str = wire->str;
 				cell->children[1]->children[0]->id2ast = wire;
 				current_ast_mod->children.push_back(cell);
-				while (simplify(cell, true, false, false, 1, -1, false, false)) { }
+				while (simplify(cell, nullptr, true, false, false, 1, -1, false, false)) { }
 
 				newNode = new Yosys::AST::AstNode(Yosys::AST::AST_IDENTIFIER);
 				newNode->str = wire->str;
@@ -2977,7 +2977,7 @@ skip_dynamic_range_lvalue_expansion:;
 				if (GetSize(ast_node->children) == 2)
 				{
 					Yosys::AST::AstNode *buf = ast_node->children[1]->clone();
-					while (simplify(buf, true, false, false, stage, -1, false, false)) { }
+					while (simplify(buf, ast_node, true, false, false, stage, -1, false, false)) { }
 					if (buf->type != Yosys::AST::AST_CONSTANT)
 						log_file_error(ast_node->filename, ast_node->location.first_line, "Failed to evaluate system function `%s' with non-constant value.\n", ast_node->str.c_str());
 
@@ -3012,7 +3012,7 @@ skip_dynamic_range_lvalue_expansion:;
 
 					current_ast_mod->children.push_back(reg);
 
-					while (simplify(reg, true, false, false, 1, -1, false, false)) { }
+					while (simplify(reg, nullptr, true, false, false, 1, -1, false, false)) { }
 
 					Yosys::AST::AstNode *regid = new Yosys::AST::AstNode(Yosys::AST::AST_IDENTIFIER);
 					regid->str = reg->str;
@@ -3088,7 +3088,7 @@ skip_dynamic_range_lvalue_expansion:;
 							RTLIL::unescape_id(ast_node->str).c_str(), int(ast_node->children.size()));
 
 				Yosys::AST::AstNode *buf = ast_node->children[0]->clone();
-				while (simplify(buf, true, false, false, stage, width_hint, sign_hint, false)) { }
+				while (simplify(buf, ast_node, true, false, false, stage, width_hint, sign_hint, false)) { }
 				if (buf->type != Yosys::AST::AST_CONSTANT)
 					log_file_error(ast_node->filename, ast_node->location.first_line, "Failed to evaluate system function `%s' with non-constant value.\n", ast_node->str.c_str());
 
@@ -3120,7 +3120,7 @@ skip_dynamic_range_lvalue_expansion:;
 					if (ast_node->children.size() == 2) {
 						Yosys::AST::AstNode *buf = ast_node->children[1]->clone();
 						// Evaluate constant expression
-						while (simplify(buf, true, false, false, stage, width_hint, sign_hint, false)) { }
+						while (simplify(buf, ast_node, true, false, false, stage, width_hint, sign_hint, false)) { }
 						dim = buf->asInt(false);
 						delete buf;
 					}
@@ -3278,7 +3278,7 @@ skip_dynamic_range_lvalue_expansion:;
 				}
 
 				if (ast_node->children.size() >= 1) {
-					while (simplify(ast_node->children[0], true, false, false, stage, width_hint, sign_hint, false)) { }
+					while (simplify(ast_node->children[0], ast_node, true, false, false, stage, width_hint, sign_hint, false)) { }
 					if (!ast_node->children[0]->isConst())
 						log_file_error(ast_node->filename, ast_node->location.first_line, "Failed to evaluate system function `%s' with non-constant argument.\n",
 								RTLIL::unescape_id(ast_node->str).c_str());
@@ -3289,7 +3289,7 @@ skip_dynamic_range_lvalue_expansion:;
 				}
 
 				if (ast_node->children.size() >= 2) {
-					while (simplify(ast_node->children[1], true, false, false, stage, width_hint, sign_hint, false)) { }
+					while (simplify(ast_node->children[1], ast_node, true, false, false, stage, width_hint, sign_hint, false)) { }
 					if (!ast_node->children[1]->isConst())
 						log_file_error(ast_node->filename, ast_node->location.first_line, "Failed to evaluate system function `%s' with non-constant argument.\n",
 								RTLIL::unescape_id(ast_node->str).c_str());
@@ -3332,7 +3332,7 @@ skip_dynamic_range_lvalue_expansion:;
 
 			if (ast_node->str == "\\$sformatf") {
 				Yosys::AST::AstNode *node_string = ast_node->children[0];
-				while (simplify(node_string, true, false, false, stage, width_hint, sign_hint, false)) { }
+				while (simplify(node_string, ast_node, true, false, false, stage, width_hint, sign_hint, false)) { }
 				if (node_string->type != Yosys::AST::AST_CONSTANT)
 					log_file_error(ast_node->filename, ast_node->location.first_line, "Failed to evaluate system function `%s' with non-constant 1st argument.\n", ast_node->str.c_str());
 				std::string sformat = node_string->bitsAsConst().decode_string();
@@ -3351,7 +3351,7 @@ skip_dynamic_range_lvalue_expansion:;
 				// Determine which bits to count
 				for (size_t i = 1; i < ast_node->children.size(); i++) {
 					Yosys::AST::AstNode *node = ast_node->children[i];
-					while (simplify(node, true, false, false, stage, -1, false, false)) { }
+					while (simplify(node, ast_node, true, false, false, stage, -1, false, false)) { }
 					if (node->type != Yosys::AST::AST_CONSTANT)
 						log_file_error(ast_node->filename, ast_node->location.first_line, "Failed to evaluate system function `%s' with non-constant control bit argument.\n", ast_node->str.c_str());
 					if (node->bits.size() != 1)
@@ -3446,7 +3446,7 @@ skip_dynamic_range_lvalue_expansion:;
 
 					argtypes.push_back(RTLIL::unescape_id(dpi_decl->children.at(i)->str));
 					args.push_back(ast_node->children.at(i-2)->clone());
-					while (simplify(args.back(), true, false, false, stage, -1, false, true)) { }
+					while (simplify(args.back(), ast_node, true, false, false, stage, -1, false, true)) { }
 
 					if (args.back()->type != Yosys::AST::AST_CONSTANT && args.back()->type != Yosys::AST::AST_REALVALUE)
 						log_file_error(ast_node->filename, ast_node->location.first_line, "Failed to evaluate DPI function with non-constant argument.\n");
@@ -3483,12 +3483,12 @@ skip_dynamic_range_lvalue_expansion:;
 							RTLIL::unescape_id(ast_node->str).c_str(), int(ast_node->children.size()));
 
 				Yosys::AST::AstNode *node_filename = ast_node->children[0]->clone();
-				while (simplify(node_filename, true, false, false, stage, width_hint, sign_hint, false)) { }
+				while (simplify(node_filename, ast_node, true, false, false, stage, width_hint, sign_hint, false)) { }
 				if (node_filename->type != Yosys::AST::AST_CONSTANT)
 					log_file_error(ast_node->filename, ast_node->location.first_line, "Failed to evaluate system function `%s' with non-constant 1st argument.\n", ast_node->str.c_str());
 
 				Yosys::AST::AstNode *node_memory = ast_node->children[1]->clone();
-				while (simplify(node_memory, true, false, false, stage, width_hint, sign_hint, false)) { }
+				while (simplify(node_memory, ast_node, true, false, false, stage, width_hint, sign_hint, false)) { }
 				if (node_memory->type != Yosys::AST::AST_IDENTIFIER || node_memory->id2ast == nullptr || node_memory->id2ast->type != Yosys::AST::AST_MEMORY)
 					log_file_error(ast_node->filename, ast_node->location.first_line, "Failed to evaluate system function `%s' with non-memory 2nd argument.\n", ast_node->str.c_str());
 
@@ -3496,7 +3496,7 @@ skip_dynamic_range_lvalue_expansion:;
 
 				if (GetSize(ast_node->children) > 2) {
 					Yosys::AST::AstNode *node_addr = ast_node->children[2]->clone();
-					while (simplify(node_addr, true, false, false, stage, width_hint, sign_hint, false)) { }
+					while (simplify(node_addr, ast_node, true, false, false, stage, width_hint, sign_hint, false)) { }
 					if (node_addr->type != Yosys::AST::AST_CONSTANT)
 						log_file_error(ast_node->filename, ast_node->location.first_line, "Failed to evaluate system function `%s' with non-constant 3rd argument.\n", ast_node->str.c_str());
 					start_addr = int(node_addr->asInt(false));
@@ -3504,7 +3504,7 @@ skip_dynamic_range_lvalue_expansion:;
 
 				if (GetSize(ast_node->children) > 3) {
 					Yosys::AST::AstNode *node_addr = ast_node->children[3]->clone();
-					while (simplify(node_addr, true, false, false, stage, width_hint, sign_hint, false)) { }
+					while (simplify(node_addr, ast_node, true, false, false, stage, width_hint, sign_hint, false)) { }
 					if (node_addr->type != Yosys::AST::AST_CONSTANT)
 						log_file_error(ast_node->filename, ast_node->location.first_line, "Failed to evaluate system function `%s' with non-constant 4th argument.\n", ast_node->str.c_str());
 					finish_addr = int(node_addr->asInt(false));
@@ -3556,7 +3556,7 @@ skip_dynamic_range_lvalue_expansion:;
 			bool require_const_eval = decl->has_const_only_constructs();
 			bool all_args_const = true;
 			for (auto child : ast_node->children) {
-				while (simplify(child, true, false, false, 1, -1, false, true)) { }
+				while (simplify(child, ast_node, true, false, false, 1, -1, false, true)) { }
 				if (child->type != Yosys::AST::AST_CONSTANT && child->type != Yosys::AST::AST_REALVALUE)
 					all_args_const = false;
 			}
@@ -3600,7 +3600,7 @@ skip_dynamic_range_lvalue_expansion:;
 
 			current_scope[wire->str] = wire;
 			current_ast_mod->children.push_back(wire);
-			while (simplify(wire, true, false, false, 1, -1, false, false)) { }
+			while (simplify(wire, current_ast_mod, true, false, false, 1, -1, false, false)) { }
 
 			Yosys::AST::AstNode *lvalue = new Yosys::AST::AstNode(Yosys::AST::AST_IDENTIFIER);
 			lvalue->str = wire->str;
@@ -3646,7 +3646,7 @@ skip_dynamic_range_lvalue_expansion:;
 					wire->is_input = false;
 					wire->is_output = false;
 					current_ast_mod->children.push_back(wire);
-					while (simplify(wire, true, false, false, 1, -1, false, false)) { }
+					while (simplify(wire, current_ast_mod, true, false, false, 1, -1, false, false)) { }
 
 					Yosys::AST::AstNode *wire_id = new Yosys::AST::AstNode(Yosys::AST::AST_IDENTIFIER);
 					wire_id->str = wire->str;
@@ -3689,7 +3689,7 @@ skip_dynamic_range_lvalue_expansion:;
 						for (auto c : child->children)
 							wire->children.push_back(c->clone());
 					} else if (!child->children.empty()) {
-						while (simplify(child, true, false, false, stage, -1, false, false)) { }
+						while (simplify(child, decl, true, false, false, stage, -1, false, false)) { }
 						if (GetSize(child->children) == GetSize(wire->children) - contains_value) {
 							for (int i = 0; i < GetSize(child->children); i++)
 								if (*child->children.at(i) != *wire->children.at(i + contains_value))
@@ -3717,7 +3717,7 @@ skip_dynamic_range_lvalue_expansion:;
 					current_ast_mod->children.push_back(wire);
 				}
 
-				while (simplify(wire, true, false, false, 1, -1, false, false)) { }
+				while (simplify(wire, current_ast_mod, true, false, false, 1, -1, false, false)) { }
 
 				if ((child->is_input || child->is_output) && arg_count < ast_node->children.size())
 				{
@@ -3749,7 +3749,7 @@ skip_dynamic_range_lvalue_expansion:;
 							}
 						}
 						// updates the sizing
-						while (simplify(wire, true, false, false, 1, -1, false, false)) { }
+						while (simplify(wire, current_ast_mod, true, false, false, 1, -1, false, false)) { }
 						delete arg;
 						continue;
 					}
