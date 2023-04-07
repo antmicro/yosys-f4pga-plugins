@@ -292,6 +292,11 @@ static int size_packed_struct(Yosys::AST::AstNode *snode, int base_offset, AST::
 			offset += width;
 		}
 	}
+    if (!snode->str.empty() && parent_node && parent_node->type != AST::AST_TYPEDEF && parent_node->type != AST::AST_STRUCT &&
+        AST_INTERNAL::current_scope.count(snode->str) != 0) {
+        AST_INTERNAL::current_scope[snode->str]->attributes[ID::wiretype] = AST::AstNode::mkconst_str(snode->str);
+        AST_INTERNAL::current_scope[snode->str]->attributes[ID::wiretype]->id2ast = snode;
+    }
 	return (is_union ? packed_width : offset);
 }
 
