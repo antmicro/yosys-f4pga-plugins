@@ -167,7 +167,7 @@ static int get_struct_range_width(Yosys::AST::AstNode *node, int dimension)
 	return node->multirange_dimensions[2*dimension + 1];
 }
 
-static int size_packed_struct(Yosys::AST::AstNode *snode, int base_offset)
+int size_packed_struct(Yosys::AST::AstNode *snode, int base_offset)
 {
 	// Struct members will be laid out in the structure contiguously from left to right.
 	// Union members all have zero offset from the start of the union.
