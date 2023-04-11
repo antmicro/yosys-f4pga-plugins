@@ -560,7 +560,7 @@ static inline std::string encode_filename(const std::string &filename)
 //
 // this function also does all name resolving and sets the id2ast member of all
 // nodes that link to a different node using names and lexical scoping.
-bool simplify(Yosys::AST::AstNode *ast_node, AST::AstNode *parent_node, bool const_fold, bool at_zero, bool in_lvalue, int stage, int width_hint, bool sign_hint, bool in_param)
+bool simplify(Yosys::AST::AstNode *ast_node, Yosys::AST::AstNode *parent_node, bool const_fold, bool at_zero, bool in_lvalue, int stage, int width_hint, bool sign_hint, bool in_param)
 {
 	static int recursion_counter = 0;
 	static bool deep_recursion_warning = false;
