@@ -902,18 +902,6 @@ static int simplify_struct(AST::AstNode *snode, int base_offset, AST::AstNode *p
             };
         }
     }
-    // embeded struct or union with range?
-    auto it = std::remove_if(snode->children.begin(), snode->children.end(), [](AST::AstNode *node) { return node->type == AST::AST_RANGE; });
-    std::vector<AST::AstNode *> ranges(it, snode->children.end());
-    snode->children.erase(it, snode->children.end());
-    if (!ranges.empty()) {
-        for (auto range : ranges) {
-            snode->multirange_dimensions.push_back(min(range->range_left, range->range_right));
-            snode->multirange_dimensions.push_back(max(range->range_left, range->range_right) - min(range->range_left, range->range_right) + 1);
-            snode->multirange_swapped.push_back(range->range_swapped);
-            delete range;
-        }
-    }
     // examine members from last to first
     for (auto it = snode->children.rbegin(); it != snode->children.rend(); ++it) {
         auto node = *it;
