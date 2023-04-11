@@ -1183,7 +1183,7 @@ static void simplify_sv(AST::AstNode *current_node, AST::AstNode *parent_node)
         break;
     case AST::AST_STRUCT:
     case AST::AST_UNION:
-        size_packed_struct(current_node, 0);
+        size_packed_struct(current_node, 0, parent_node);
         // instance rather than just a type in a typedef or outer struct?
         if (!current_node->str.empty() && current_node->str[0] == '\\') {
             // instance so add a wire for the packed structure
