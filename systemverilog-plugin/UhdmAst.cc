@@ -967,10 +967,9 @@ static int simplify_struct(AST::AstNode *snode, int base_offset, AST::AstNode *p
     int offset = 0;
     int packed_width = -1;
     for (auto s : snode->children) {
-        if (s->type == AST::AST_RANGE) {
-            while (simplify(s, true, false, false, 1, -1, false, false)) {
-            };
-        }
+        simplify_sv(s, snode);
+        while (simplify(s, true, false, false, 1, -1, false, false)) {
+        };
     }
     // embeded struct or union with range?
     auto it = std::remove_if(snode->children.begin(), snode->children.end(), [](AST::AstNode *node) { return node->type == AST::AST_RANGE; });
@@ -1480,7 +1479,7 @@ AST::AstNode *UhdmAst::process_value(vpiHandle obj_h)
                 is_signed = true;
             }
             auto c = AST::AstNode::mkconst_int(val.format == vpiUIntVal ? val.value.uint : val.value.integer, is_signed, size > 0 ? size : 32);
-            if (size == 0 || size == -1)
+            if (size == -1)
                 c->is_unsized = true;
             return c;
         }
@@ -3748,14 +3747,40 @@ void UhdmAst::process_list_op()
 
 void UhdmAst::process_cast_op()
 {
-    current_node = make_ast_node(AST::AST_NONE);
-    visit_one_to_many({vpiOperand}, obj_h, [&](AST::AstNode *node) {
-        node->cloneInto(current_node);
-        delete node;
-    });
+    current_node = make_ast_node(AST::AST_CAST_SIZE);
     vpiHandle typespec_h = vpi_handle(vpiTypespec, obj_h);
-    shared.report.mark_handled(typespec_h);
+    auto cast_size = process_value(typespec_h);
+    if (!cast_size) {
+        // Surelog sometimes report size as part of vpiTypespec (e.g. int_typespec)
+        // if it is the case, we need to set size to the left_range of first packed range
+        visit_one_to_one({vpiTypespec}, obj_h, [&](AST::AstNode *node) {
+            uhdmast_assert(node);
+            setup_current_scope(shared.top_nodes, shared.current_top_node);
+            if (node->type == AST::AST_STRUCT) {
+                // if it is struct, create temporary wire and calculate size of it
+                simplify_struct(node, 0, nullptr);
+                std::string node_str = "$systemverilog_plugin$temp_wire";
+                auto wnode = make_packed_struct_local(node, node_str);
+                convert_packed_unpacked_range(wnode);
+                wnode->cloneInto(node);
+                delete wnode;
+            }
+            simplify_sv(node, nullptr);
+            clear_current_scope();
+            int width = 1;
+            // Multiply widths of all dimensions.
+            // `multirange_dimensions` stores (repeating) pairs of [offset, width].
+            for (size_t i = 1; i < node->multirange_dimensions.size(); i += 2) {
+                width *= node->multirange_dimensions[i] + 1;
+            }
+            cast_size = AST::AstNode::mkconst_int(width, true);
+            delete node;
+        });
+    }
+    uhdmast_assert(cast_size != nullptr);
     vpi_release_handle(typespec_h);
+    current_node->children.push_back(cast_size);
+    visit_one_to_many({vpiOperand}, obj_h, [&](AST::AstNode *node) { current_node->children.push_back(node); });
 }
 
 void UhdmAst::process_inside_op()
@@ -4373,6 +4398,8 @@ void UhdmAst::process_logic_typespec()
         }
     }
     visit_one_to_many({vpiRange}, obj_h, [&](AST::AstNode *node) { packed_ranges.push_back(node); });
+    if (packed_ranges.empty())
+        packed_ranges.push_back(make_range(0, 0));
     add_multirange_wire(current_node, packed_ranges, unpacked_ranges);
     current_node->is_signed = vpi_get(vpiSigned, obj_h);
 }
