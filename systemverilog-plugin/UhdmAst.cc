@@ -174,6 +174,19 @@ static void sanitize_symbol_name(std::string &name)
     }
 }
 
+static std::string get_parent_name(vpiHandle parent_h)
+{
+    std::string parent_name;
+    if (auto p = vpi_get_str(vpiFullName, parent_h)) {
+        parent_name = p;
+    } else if (auto p = vpi_get_str(vpiName, parent_h)) {
+        parent_name = p;
+    } else if (auto p = vpi_get_str(vpiDefName, parent_h)) {
+        parent_name = p;
+    }
+	return parent_name;
+}
+
 static std::string get_name(vpiHandle obj_h, bool prefer_full_name = false)
 {
     auto first_check = prefer_full_name ? vpiFullName : vpiName;
@@ -192,42 +205,30 @@ static std::string get_name(vpiHandle obj_h, bool prefer_full_name = false)
     // approach didn't work for the names whith "." as an escaped
     // character.
     vpiHandle parent_h = vpi_handle(vpiParent, obj_h);
+
     if (parent_h) {
         std::string parent_name;
-        if (auto p = vpi_get_str(vpiFullName, parent_h)) {
-            parent_name = p;
-        } else if (auto p = vpi_get_str(vpiName, parent_h)) {
-            parent_name = p;
-        } else if (auto p = vpi_get_str(vpiDefName, parent_h)) {
-            parent_name = p;
-        }
+        parent_name = get_parent_name(parent_h);
+
         if (parent_name.empty()) {
             // Nodes of certain types, like param_assign, don't have
             // a name, so we need to look further for the ancestor.
             parent_h = vpi_handle(vpiParent, parent_h);
+
             if (parent_h) {
-                if (auto p = vpi_get_str(vpiFullName, parent_h)) {
-                    parent_name = p;
-                } else if (auto p = vpi_get_str(vpiName, parent_h)) {
-                    parent_name = p;
-                } else if (auto p = vpi_get_str(vpiDefName, parent_h)) {
-                    parent_name = p;
-                }
+                parent_name = get_parent_name(parent_h);
+
                 while (!parent_name.empty()) {
                     parent_name = parent_name + ".";
+
                     if ((name.rfind(parent_name) != std::string::npos)) {
                         name = name.substr(name.rfind(parent_name) + parent_name.size());
                         break;
                     } else {
                         parent_h = vpi_handle(vpiParent, parent_h);
+
                         if (parent_h) {
-                            if (auto p = vpi_get_str(vpiFullName, parent_h)) {
-                                parent_name = p;
-                            } else if (auto p = vpi_get_str(vpiName, parent_h)) {
-                                parent_name = p;
-                            } else if (auto p = vpi_get_str(vpiDefName, parent_h)) {
-                                parent_name = p;
-                            }
+                            parent_name = get_parent_name(parent_h);
                         } else {
                             parent_name.clear();
                         }
@@ -243,13 +244,7 @@ static std::string get_name(vpiHandle obj_h, bool prefer_full_name = false)
             } else {
                 parent_h = vpi_handle(vpiParent, parent_h);
                 if (parent_h) {
-                    if (auto p = vpi_get_str(vpiFullName, parent_h)) {
-                        parent_name = p;
-                    } else if (auto p = vpi_get_str(vpiName, parent_h)) {
-                        parent_name = p;
-                    } else if (auto p = vpi_get_str(vpiDefName, parent_h)) {
-                        parent_name = p;
-                    }
+                    parent_name = get_parent_name(parent_h);
                 } else {
                     parent_name.clear();
                 }
