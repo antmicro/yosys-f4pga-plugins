@@ -187,6 +187,26 @@ static std::string get_parent_name(vpiHandle parent_h)
 	return parent_name;
 }
 
+static void find_ancestor_name(vpiHandle parent_h, std::string &name, std::string &parent_name)
+{
+
+    while (!parent_name.empty()) {
+        parent_name = parent_name + ".";
+        if ((name.rfind(parent_name) != std::string::npos)) {
+            name = name.substr(name.rfind(parent_name) + parent_name.size());
+            break;
+        } else {
+            parent_h = vpi_handle(vpiParent, parent_h);
+    
+            if (parent_h) {
+                parent_name = get_parent_name(parent_h);
+            } else {
+                parent_name.clear();
+            }
+        }
+    }
+}
+
 static std::string get_name(vpiHandle obj_h, bool prefer_full_name = false)
 {
     auto first_check = prefer_full_name ? vpiFullName : vpiName;
@@ -217,39 +237,10 @@ static std::string get_name(vpiHandle obj_h, bool prefer_full_name = false)
 
             if (parent_h) {
                 parent_name = get_parent_name(parent_h);
-
-                while (!parent_name.empty()) {
-                    parent_name = parent_name + ".";
-
-                    if ((name.rfind(parent_name) != std::string::npos)) {
-                        name = name.substr(name.rfind(parent_name) + parent_name.size());
-                        break;
-                    } else {
-                        parent_h = vpi_handle(vpiParent, parent_h);
-
-                        if (parent_h) {
-                            parent_name = get_parent_name(parent_h);
-                        } else {
-                            parent_name.clear();
-                        }
-                    }
-                }
+				find_ancestor_name(parent_h, name, parent_name);
             }
         }
-        while (!parent_name.empty()) {
-            parent_name = parent_name + ".";
-            if ((name.rfind(parent_name) != std::string::npos)) {
-                name = name.substr(name.rfind(parent_name) + parent_name.size());
-                break;
-            } else {
-                parent_h = vpi_handle(vpiParent, parent_h);
-                if (parent_h) {
-                    parent_name = get_parent_name(parent_h);
-                } else {
-                    parent_name.clear();
-                }
-            }
-        }
+        find_ancestor_name(parent_h, name, parent_name);
     }
     sanitize_symbol_name(name);
     return name;
