@@ -209,16 +209,11 @@ static void find_ancestor_name(vpiHandle parent_h, std::string &name, std::strin
 
 static std::string get_name(vpiHandle obj_h, bool prefer_full_name = false)
 {
-    auto first_check = prefer_full_name ? vpiFullName : vpiName;
-    auto last_check = prefer_full_name ? vpiName : vpiFullName;
+    const uhdm_handle *const handle = (const uhdm_handle *)obj_h;
+    const UHDM::BaseClass *const object = (const UHDM::BaseClass *)handle->object;
+
     std::string name;
-    if (auto s = vpi_get_str(first_check, obj_h)) {
-        name = s;
-    } else if (auto s = vpi_get_str(vpiDefName, obj_h)) {
-        name = s;
-    } else if (auto s = vpi_get_str(last_check, obj_h)) {
-        name = s;
-    }
+    name = object->VpiName().data();
     // We are looking for the ancestor name to use it as a delimeter
     // when stripping the name of the current node.
     // We used to strip the name by searching for "." in it, but this
