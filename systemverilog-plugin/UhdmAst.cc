@@ -434,6 +434,8 @@ static void resolve_wiretype(AST::AstNode *wire_node)
             unpacked_ranges.push_back(r->clone());
         }
     }
+    delete_attribute(wire_node, attr_id::packed_ranges);
+    delete_attribute(wire_node, attr_id::unpacked_ranges);
     AST::AstNode *wiretype_ast = nullptr;
     log_assert(AST_INTERNAL::current_scope.count(wiretype_node->str));
     wiretype_ast = AST_INTERNAL::current_scope[wiretype_node->str];
@@ -456,22 +458,33 @@ static void resolve_wiretype(AST::AstNode *wire_node)
     }
     if ((wire_node->children[0]->type == AST::AST_RANGE || (wire_node->children.size() > 1 && wire_node->children[1]->type == AST::AST_RANGE)) &&
         wire_node->multirange_dimensions.empty()) {
+        // We need to save order in which ranges appear in wiretype and add them before wire range
+        // We need to copy this ranges, so create new vector for them
+        std::vector<AST::AstNode *> packed_ranges_wiretype;
+        std::vector<AST::AstNode *> unpacked_ranges_wiretype;
         if (wiretype_ast && !wiretype_ast->children.empty() && wiretype_ast->children[0]->attributes.count(UhdmAst::packed_ranges()) &&
             wiretype_ast->children[0]->attributes.count(UhdmAst::unpacked_ranges())) {
             for (auto r : wiretype_ast->children[0]->attributes[UhdmAst::packed_ranges()]->children) {
-                packed_ranges.push_back(r->clone());
+                packed_ranges_wiretype.push_back(r->clone());
             }
             for (auto r : wiretype_ast->children[0]->attributes[UhdmAst::unpacked_ranges()]->children) {
-                unpacked_ranges.push_back(r->clone());
+                unpacked_ranges_wiretype.push_back(r->clone());
             }
         } else {
             if (wire_node->children[0]->type == AST::AST_RANGE)
-                packed_ranges.push_back(wire_node->children[0]->clone());
+                packed_ranges_wiretype.push_back(wire_node->children[0]->clone());
             else if (wire_node->children[1]->type == AST::AST_RANGE)
-                packed_ranges.push_back(wire_node->children[1]->clone());
+                packed_ranges_wiretype.push_back(wire_node->children[1]->clone());
             else
                 log_error("Unhandled case in resolve_wiretype!\n");
         }
+        // add wiretype range before current wire ranges
+        std::reverse(packed_ranges_wiretype.begin(), packed_ranges_wiretype.end());
+        std::reverse(unpacked_ranges_wiretype.begin(), unpacked_ranges_wiretype.end());
+        std::reverse(packed_ranges.begin(), packed_ranges.end());
+        std::reverse(unpacked_ranges.begin(), unpacked_ranges.end());
+        packed_ranges.insert(packed_ranges.begin(), packed_ranges_wiretype.begin(), packed_ranges_wiretype.end());
+        unpacked_ranges.insert(unpacked_ranges.begin(), unpacked_ranges_wiretype.begin(), unpacked_ranges_wiretype.end());
         AST::AstNode *value = nullptr;
         if (wire_node->children[0]->type != AST::AST_RANGE) {
             value = wire_node->children[0]->clone();
@@ -479,26 +492,7 @@ static void resolve_wiretype(AST::AstNode *wire_node)
         delete_children(wire_node);
         if (value)
             wire_node->children.push_back(value);
-        wire_node->attributes[UhdmAst::packed_ranges()] = AST::AstNode::mkconst_int(1, false, 1);
-        if (!packed_ranges.empty()) {
-            std::reverse(packed_ranges.begin(), packed_ranges.end());
-            wire_node->attributes[UhdmAst::packed_ranges()]->children.insert(wire_node->attributes[UhdmAst::packed_ranges()]->children.end(),
-                                                                             packed_ranges.begin(), packed_ranges.end());
-            packed_ranges.clear();
-        }
-
-        wire_node->attributes[UhdmAst::unpacked_ranges()] = AST::AstNode::mkconst_int(1, false, 1);
-        if (!unpacked_ranges.empty()) {
-            wire_node->attributes[UhdmAst::unpacked_ranges()]->children.insert(wire_node->attributes[UhdmAst::unpacked_ranges()]->children.end(),
-                                                                               unpacked_ranges.begin(), unpacked_ranges.end());
-            unpacked_ranges.clear();
-        }
-    }
-    for (auto *range : packed_ranges) {
-        delete range;
-    }
-    for (auto *range : unpacked_ranges) {
-        delete range;
+        add_multirange_wire(wire_node, packed_ranges, unpacked_ranges, false);
     }
 }
 
