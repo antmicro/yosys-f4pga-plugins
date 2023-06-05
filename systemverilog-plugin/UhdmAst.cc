@@ -1264,10 +1264,13 @@ static void simplify_sv(AST::AstNode *current_node, AST::AstNode *parent_node)
         }
         break;
     case AST::AST_STRUCT_ITEM:
-        AST_INTERNAL::current_scope[current_node->str] = current_node;
-        convert_packed_unpacked_range(current_node);
-        while (simplify(current_node, true, false, false, 1, -1, false, false)) {
-        };
+        if (!current_node->attributes.count(UhdmAst::is_simplified_wire())) {
+            current_node->attributes[UhdmAst::is_simplified_wire()] = AST::AstNode::mkconst_int(1, true);
+            AST_INTERNAL::current_scope[current_node->str] = current_node;
+            convert_packed_unpacked_range(current_node);
+            while (simplify(current_node, true, false, false, 1, -1, false, false)) {
+            };
+        }
         break;
     case AST::AST_TCALL:
         if (current_node->str == "$display" || current_node->str == "$write")
