@@ -1758,17 +1758,15 @@ void UhdmAst::process_packed_array_typespec()
             current_node->str = str;
             delete node;
         } else if (node) {
-            current_node->str = node->str;
-            if (node->type == AST::AST_ENUM && !node->children.empty()) {
-                for (auto *c : node->children[0]->children) {
-                    if (c->type == AST::AST_RANGE && c->str.empty())
-                        packed_ranges.push_back(c);
-                    else
-                        delete c;
-                }
-                node->children[0]->children.clear();
+            if (!node->str.empty()) {
+                AST::AstNode *const wiretype_node = make_named_node(AST::AST_WIRETYPE);
+                wiretype_node->str = node->str;
+                current_node->children.push_back(wiretype_node);
+                current_node->is_custom_type = true;
+                auto it = shared.param_types.find(current_node->str);
+                if (it == shared.param_types.end())
+                    shared.param_types.insert(std::make_pair(current_node->str, node->clone()));
             }
-            delete node;
         }
     });
     add_multirange_wire(current_node, std::move(packed_ranges), std::move(unpacked_ranges));
