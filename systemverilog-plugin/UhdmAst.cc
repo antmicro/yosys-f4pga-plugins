@@ -452,7 +452,8 @@ static void resolve_wiretype(AST::AstNode *wire_node)
         wire_node->children[0]->range_left = struct_width;
         wire_node->children[0]->children[0]->integer = struct_width;
     }
-    if (wiretype_ast && wire_node->attributes.count(ID::wiretype)) {
+    if (wiretype_ast) {
+        log_assert(wire_node->attributes.count(ID::wiretype));
         log_assert(wiretype_ast->type == AST::AST_TYPEDEF);
         wire_node->attributes[ID::wiretype]->id2ast = wiretype_ast->children[0];
     }
@@ -492,7 +493,7 @@ static void resolve_wiretype(AST::AstNode *wire_node)
         delete_children(wire_node);
         if (value)
             wire_node->children.push_back(value);
-        add_multirange_wire(wire_node, packed_ranges, unpacked_ranges, false);
+        add_multirange_wire(wire_node, packed_ranges, unpacked_ranges, false /* reverse */);
     }
 }
 
@@ -678,11 +679,6 @@ static void convert_packed_unpacked_range(AST::AstNode *wire_node)
             wire_node->type = AST::AST_MEMORY;
             wire_node->is_logic = true;
         }
-    }
-
-    if (wire_node->type == AST::AST_STRUCT_ITEM || wire_node->type == AST::AST_STRUCT) {
-        delete_attribute(wire_node, UhdmAst::packed_ranges());
-        delete_attribute(wire_node, UhdmAst::unpacked_ranges());
     }
 
     // Insert new range
@@ -1269,9 +1265,7 @@ static void simplify_sv(AST::AstNode *current_node, AST::AstNode *parent_node)
         break;
     case AST::AST_STRUCT_ITEM:
         AST_INTERNAL::current_scope[current_node->str] = current_node;
-        if (current_node->attributes.count(UhdmAst::packed_ranges()) || current_node->attributes.count(UhdmAst::unpacked_ranges())) {
-            convert_packed_unpacked_range(current_node);
-        }
+        convert_packed_unpacked_range(current_node);
         while (simplify(current_node, true, false, false, 1, -1, false, false)) {
         };
         break;
