@@ -1935,15 +1935,17 @@ void UhdmAst::move_type_to_new_typedef(AST::AstNode *current_node, AST::AstNode 
             delete type_node;
         } else {
             type_node->str = "$enum" + std::to_string(shared.next_enum_id());
+            std::vector<AST::AstNode *> packed_ranges;
             auto wire_node = new AST::AstNode(AST::AST_WIRE);
             wire_node->is_reg = true;
             wire_node->attributes["\\enum_type"] = AST::AstNode::mkconst_str(type_node->str);
             if (!type_node->children.empty() && type_node->children[0]->children.size() > 1) {
-                wire_node->children.push_back(type_node->children[0]->children[1]->clone());
+                packed_ranges.push_back(type_node->children[0]->children[1]->clone());
             } else {
                 // Add default range
-                wire_node->children.push_back(make_range(31, 0));
+                packed_ranges.push_back(make_range(31, 0));
             }
+            add_multirange_wire(wire_node, std::move(packed_ranges), {});
             typedef_node->children.push_back(wire_node);
             current_node->children.push_back(type_node);
             current_node->children.push_back(typedef_node);
