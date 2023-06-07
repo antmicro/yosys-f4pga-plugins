@@ -180,78 +180,83 @@ static void sanitize_symbol_name(std::string &name)
     }
 }
 
-static std::string get_parent_name(vpiHandle parent_h)
+static std::string get_parent_name(const UHDM::BaseClass *parent_h)
 {
     std::string parent_name;
-    if (auto p = vpi_get_str(vpiFullName, parent_h)) {
-        parent_name = p;
-    } else if (auto p = vpi_get_str(vpiName, parent_h)) {
-        parent_name = p;
-    } else if (auto p = vpi_get_str(vpiDefName, parent_h)) {
-        parent_name = p;
+    parent_name = parent_h->VpiName().data();
+    if (parent_name.empty()) {
+        parent_name = parent_h->VpiDefName().data();
     }
     return parent_name;
 }
 
-// Warning: Takes ownership of `parent_h` and releases it.
-static void find_ancestor_name(vpiHandle parent_h, std::string &name, std::string &parent_name)
+static void find_ancestor_name(const UHDM::BaseClass *parent_h, std::string &name, std::string &parent_name)
 {
-
     while (!parent_name.empty()) {
         parent_name = parent_name + ".";
         if ((name.rfind(parent_name) != std::string::npos)) {
             name = name.substr(name.rfind(parent_name) + parent_name.size());
             break;
         } else {
-            auto old_parent_h = parent_h;
-            parent_h = vpi_handle(vpiParent, parent_h);
-            vpi_release_handle(old_parent_h);
-
+            parent_h = parent_h->VpiParent();
             if (parent_h) {
                 parent_name = get_parent_name(parent_h);
+
             } else {
                 parent_name.clear();
             }
         }
     }
-    vpi_release_handle(parent_h);
 }
 
 static std::string get_name(vpiHandle obj_h, bool prefer_full_name = false)
 {
-    auto first_check = prefer_full_name ? vpiFullName : vpiName;
-    auto last_check = prefer_full_name ? vpiName : vpiFullName;
+    const uhdm_handle *const handle = (const uhdm_handle *)obj_h;
+    const auto *const object = (const UHDM::BaseClass *)handle->object;
     std::string name;
-    if (auto s = vpi_get_str(first_check, obj_h)) {
-        name = s;
-    } else if (auto s = vpi_get_str(vpiDefName, obj_h)) {
-        name = s;
-    } else if (auto s = vpi_get_str(last_check, obj_h)) {
-        name = s;
+
+    if (prefer_full_name) {
+        if (object->VpiType() == vpiParameter) {
+            const auto *const temp_object = (const UHDM::parameter *)object;
+            name = temp_object->VpiFullName().data();
+        } else {
+            const auto *const temp_object = (const UHDM::nets *)object;
+            name = temp_object->VpiFullName().data();
+        }
+    } else {
+        name = object->VpiName().data();
+    }
+    if (name.compare("\\") == 0 || name.compare("") == 0) {
+        name = object->VpiDefName().data();
+    }
+    if (name.empty() && object->VpiType() == vpiBitSelect) {
+        const auto *const bit_s_object = (const UHDM::bit_select *)object;
+        if (!bit_s_object->VpiFullName().empty()) {
+            name = bit_s_object->VpiFullName();
+        }
     }
     // We are looking for the ancestor name to use it as a delimeter
     // when stripping the name of the current node.
     // We used to strip the name by searching for "." in it, but this
     // approach didn't work for the names whith "." as an escaped
     // character.
-    vpiHandle parent_h = vpi_handle(vpiParent, obj_h);
+    const auto *const parent_h = object->VpiParent();
 
     if (parent_h) {
         std::string parent_name;
         parent_name = get_parent_name(parent_h);
 
+        const UHDM::BaseClass *parent_h_new = parent_h;
         if (parent_name.empty()) {
             // Nodes of certain types, like param_assign, don't have
             // a name, so we need to look further for the ancestor.
-            auto old_parent_h = parent_h;
-            parent_h = vpi_handle(vpiParent, parent_h);
-            vpi_release_handle(old_parent_h);
+            parent_h_new = parent_h->VpiParent();
 
-            if (parent_h) {
-                parent_name = get_parent_name(parent_h);
+            if (parent_h_new) {
+                parent_name = get_parent_name(parent_h_new);
             }
         }
-        find_ancestor_name(parent_h, name, parent_name);
+        find_ancestor_name(parent_h_new, name, parent_name);
     }
     sanitize_symbol_name(name);
     return name;
