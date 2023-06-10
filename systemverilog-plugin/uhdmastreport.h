@@ -1,5 +1,5 @@
-#ifndef _UHDM_AST_REPORT_H_
-#define _UHDM_AST_REPORT_H_ 1
+#ifndef UHDM_AST_REPORT_H_
+#define UHDM_AST_REPORT_H_ 1
 
 #include "kernel/yosys.h"
 #include <map>

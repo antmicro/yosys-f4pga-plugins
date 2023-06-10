@@ -1,5 +1,5 @@
-#ifndef _UHDM_AST_SHARED_H_
-#define _UHDM_AST_SHARED_H_ 1
+#ifndef UHDM_AST_SHARED_H_
+#define UHDM_AST_SHARED_H_ 1
 
 #include "frontends/ast/ast.h"
 
