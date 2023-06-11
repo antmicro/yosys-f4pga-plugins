@@ -13,6 +13,8 @@
 #include "frontends/ast/ast.h"
 #include "libs/sha1/sha1.h"
 
+#include "utils/svp_vpi_handle.h"
+
 // UHDM
 #include <uhdm/ExprEval.h>
 #include <uhdm/uhdm.h>
