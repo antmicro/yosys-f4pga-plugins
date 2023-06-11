@@ -3440,255 +3440,183 @@ void UhdmAst::process_operation(const UHDM::BaseClass *object)
 {
     auto operation = vpi_get(vpiOpType, obj_h);
     switch (operation) {
-    case vpiStreamRLOp:
-        process_stream_op();
-        break;
-    case vpiEventOrOp:
-    case vpiListOp:
-        process_list_op();
-        break;
-    case vpiCastOp:
-        process_cast_op();
-        break;
-    case vpiInsideOp:
-        process_inside_op();
-        break;
-    case vpiAssignmentPatternOp:
-        process_assignment_pattern_op();
-        break;
+    // clang-format off
+    case vpiStreamRLOp:          return process_stream_op();
+    case vpiEventOrOp:           return process_list_op();
+    case vpiListOp:              return process_list_op();
+    case vpiCastOp:              return process_cast_op();
+    case vpiInsideOp:            return process_inside_op();
+    case vpiAssignmentPatternOp: return process_assignment_pattern_op();
+    // clang-format on
     case vpiWildEqOp:
-    case vpiWildNeqOp: {
+    case vpiWildNeqOp:
         report_error("%.*s:%d: Wildcard operators are not supported yet\n", (int)object->VpiFile().length(), object->VpiFile().data(),
                      object->VpiLineNo());
-        break;
+        return;
     }
-    default: {
-        current_node = make_ast_node(AST::AST_NONE);
-        visit_one_to_many({vpiOperand}, obj_h, [&](AST::AstNode *node) {
-            if (node) {
-                current_node->children.push_back(node);
-            }
-        });
-        switch (operation) {
-        case vpiMinusOp:
-            current_node->type = AST::AST_NEG;
-            break;
-        case vpiPlusOp:
-            current_node->type = AST::AST_POS;
-            break;
-        case vpiPosedgeOp:
-            current_node->type = AST::AST_POSEDGE;
-            break;
-        case vpiNegedgeOp:
-            current_node->type = AST::AST_NEGEDGE;
-            break;
-        case vpiUnaryAndOp:
-            current_node->type = AST::AST_REDUCE_AND;
-            break;
-        case vpiUnaryOrOp:
-            current_node->type = AST::AST_REDUCE_OR;
-            break;
-        case vpiUnaryXorOp:
-            current_node->type = AST::AST_REDUCE_XOR;
-            break;
-        case vpiUnaryXNorOp:
-            current_node->type = AST::AST_REDUCE_XNOR;
-            break;
-        case vpiUnaryNandOp: {
-            auto not_node = new AST::AstNode(AST::AST_NONE, current_node);
-            if (current_node->children.size() == 2) {
-                current_node->type = AST::AST_BIT_AND;
-                not_node->type = AST::AST_BIT_NOT;
-            } else {
-                current_node->type = AST::AST_REDUCE_AND;
-                not_node->type = AST::AST_LOGIC_NOT;
-            }
-            current_node = not_node;
-            break;
+
+    current_node = make_ast_node(AST::AST_NONE);
+    visit_one_to_many({vpiOperand}, obj_h, [&](AST::AstNode *node) {
+        if (node) {
+            current_node->children.push_back(node);
         }
-        case vpiUnaryNorOp: {
-            auto not_node = new AST::AstNode(AST::AST_NONE, current_node);
-            if (current_node->children.size() == 2) {
-                current_node->type = AST::AST_BIT_OR;
-                not_node->type = AST::AST_BIT_NOT;
-            } else {
-                current_node->type = AST::AST_REDUCE_OR;
-                not_node->type = AST::AST_LOGIC_NOT;
-            }
-            current_node = not_node;
-            break;
-        }
-        case vpiBitNegOp:
-            current_node->type = AST::AST_BIT_NOT;
-            break;
-        case vpiBitAndOp:
+    });
+
+    switch (operation) {
+    case vpiUnaryNandOp: {
+        auto not_node = new AST::AstNode(AST::AST_NONE, current_node);
+        if (current_node->children.size() == 2) {
             current_node->type = AST::AST_BIT_AND;
-            break;
-        case vpiBitOrOp:
+            not_node->type = AST::AST_BIT_NOT;
+        } else {
+            current_node->type = AST::AST_REDUCE_AND;
+            not_node->type = AST::AST_LOGIC_NOT;
+        }
+        current_node = not_node;
+        return;
+    }
+    case vpiUnaryNorOp: {
+        auto not_node = new AST::AstNode(AST::AST_NONE, current_node);
+        if (current_node->children.size() == 2) {
             current_node->type = AST::AST_BIT_OR;
-            break;
-        case vpiBitXorOp:
-            current_node->type = AST::AST_BIT_XOR;
-            break;
-        case vpiBitXnorOp:
-            current_node->type = AST::AST_BIT_XNOR;
-            break;
-        case vpiLShiftOp: {
-            current_node->type = AST::AST_SHIFT_LEFT;
-            log_assert(current_node->children.size() == 2);
-            auto unsigned_node = new AST::AstNode(AST::AST_TO_UNSIGNED, current_node->children[1]);
-            current_node->children[1] = unsigned_node;
-            break;
+            not_node->type = AST::AST_BIT_NOT;
+        } else {
+            current_node->type = AST::AST_REDUCE_OR;
+            not_node->type = AST::AST_LOGIC_NOT;
         }
-        case vpiRShiftOp: {
-            current_node->type = AST::AST_SHIFT_RIGHT;
-            log_assert(current_node->children.size() == 2);
-            auto unsigned_node = new AST::AstNode(AST::AST_TO_UNSIGNED, current_node->children[1]);
-            current_node->children[1] = unsigned_node;
-            break;
-        }
-        case vpiNotOp:
-            current_node->type = AST::AST_LOGIC_NOT;
-            break;
-        case vpiLogAndOp:
-            current_node->type = AST::AST_LOGIC_AND;
-            break;
-        case vpiLogOrOp:
-            current_node->type = AST::AST_LOGIC_OR;
-            break;
-        case vpiEqOp:
-            current_node->type = AST::AST_EQ;
-            break;
-        case vpiNeqOp:
-            current_node->type = AST::AST_NE;
-            break;
-        case vpiCaseEqOp:
-            current_node->type = AST::AST_EQX;
-            break;
-        case vpiCaseNeqOp:
-            current_node->type = AST::AST_NEX;
-            break;
-        case vpiGtOp:
-            current_node->type = AST::AST_GT;
-            break;
-        case vpiGeOp:
-            current_node->type = AST::AST_GE;
-            break;
-        case vpiLtOp:
-            current_node->type = AST::AST_LT;
-            break;
-        case vpiLeOp:
-            current_node->type = AST::AST_LE;
-            break;
-        case vpiSubOp:
-            current_node->type = AST::AST_SUB;
-            if (!current_node->children.empty() && current_node->children[0]->type == AST::AST_LOCALPARAM) {
-                current_node->children[0]->type = AST::AST_IDENTIFIER;
-            }
-            break;
-        case vpiAddOp:
-            current_node->type = AST::AST_ADD;
-            break;
-        case vpiMultOp:
-            current_node->type = AST::AST_MUL;
-            break;
-        case vpiDivOp:
-            current_node->type = AST::AST_DIV;
-            break;
-        case vpiModOp:
-            current_node->type = AST::AST_MOD;
-            break;
-        case vpiArithLShiftOp: {
-            current_node->type = AST::AST_SHIFT_SLEFT;
-            log_assert(current_node->children.size() == 2);
-            auto unsigned_node = new AST::AstNode(AST::AST_TO_UNSIGNED, current_node->children[1]);
-            current_node->children[1] = unsigned_node;
-            break;
-        }
-        case vpiArithRShiftOp: {
-            current_node->type = AST::AST_SHIFT_SRIGHT;
-            log_assert(current_node->children.size() == 2);
-            auto unsigned_node = new AST::AstNode(AST::AST_TO_UNSIGNED, current_node->children[1]);
-            current_node->children[1] = unsigned_node;
-            break;
-        }
-        case vpiPowerOp:
-            current_node->type = AST::AST_POW;
-            break;
-        case vpiPostIncOp: {
-            // TODO: Make this an actual post-increment op (currently it's a pre-increment)
-            log_warning("%.*s:%d: Post-incrementation operations are handled as pre-incrementation.\n", (int)object->VpiFile().length(),
-                        object->VpiFile().data(), object->VpiLineNo());
-            [[fallthrough]];
-        }
-        case vpiPreIncOp: {
-            current_node->type = AST::AST_ASSIGN_EQ;
-            auto id = current_node->children[0]->clone();
-            auto add_node = new AST::AstNode(AST::AST_ADD, id, AST::AstNode::mkconst_int(1, true));
-            add_node->filename = current_node->filename;
-            add_node->location = current_node->location;
-            current_node->children.push_back(add_node);
-            break;
-        }
-        case vpiPostDecOp: {
-            // TODO: Make this an actual post-decrement op (currently it's a pre-decrement)
-            log_warning("%.*s:%d: Post-decrementation operations are handled as pre-decrementation.\n", (int)object->VpiFile().length(),
-                        object->VpiFile().data(), object->VpiLineNo());
-            [[fallthrough]];
-        }
-        case vpiPreDecOp: {
-            current_node->type = AST::AST_ASSIGN_EQ;
-            auto id = current_node->children[0]->clone();
-            auto add_node = new AST::AstNode(AST::AST_SUB, id, AST::AstNode::mkconst_int(1, true));
-            add_node->filename = current_node->filename;
-            add_node->location = current_node->location;
-            current_node->children.push_back(add_node);
-            break;
-        }
-        case vpiConditionOp:
-            current_node->type = AST::AST_TERNARY;
-            break;
-        case vpiConcatOp: {
-            current_node->type = AST::AST_CONCAT;
-            std::reverse(current_node->children.begin(), current_node->children.end());
-            break;
-        }
-        case vpiMultiConcatOp:
-        case vpiMultiAssignmentPatternOp:
-            current_node->type = AST::AST_REPLICATE;
-            break;
-        case vpiAssignmentOp:
-            current_node->type = AST::AST_ASSIGN_EQ;
-            break;
-        case vpiStreamLROp: {
-            auto concat_node = current_node->children.back();
-            current_node->children.pop_back();
-            delete current_node;
-            current_node = concat_node;
-            break;
-        }
-        case vpiNullOp: {
-            delete current_node;
-            current_node = nullptr;
-            break;
-        }
-        case vpiMinTypMaxOp: {
-            // ignore min and max and set only typ
-            log_assert(current_node->children.size() == 3);
-            auto tmp = current_node->children[1]->clone();
-            delete current_node;
-            current_node = tmp;
-            break;
-        }
-        default: {
-            delete current_node;
-            current_node = nullptr;
-            report_error("%.*s:%d: Encountered unhandled operation type %d\n", (int)object->VpiFile().length(), object->VpiFile().data(),
-                         object->VpiLineNo(), operation);
-        }
-        }
+        current_node = not_node;
+        return;
     }
+    case vpiLShiftOp: {
+        current_node->type = AST::AST_SHIFT_LEFT;
+        log_assert(current_node->children.size() == 2);
+        auto unsigned_node = new AST::AstNode(AST::AST_TO_UNSIGNED, current_node->children[1]);
+        current_node->children[1] = unsigned_node;
+        return;
     }
+    case vpiRShiftOp: {
+        current_node->type = AST::AST_SHIFT_RIGHT;
+        log_assert(current_node->children.size() == 2);
+        auto unsigned_node = new AST::AstNode(AST::AST_TO_UNSIGNED, current_node->children[1]);
+        current_node->children[1] = unsigned_node;
+        return;
+    }
+    case vpiSubOp:
+        current_node->type = AST::AST_SUB;
+        if (!current_node->children.empty() && current_node->children[0]->type == AST::AST_LOCALPARAM) {
+            current_node->children[0]->type = AST::AST_IDENTIFIER;
+        }
+        return;
+    case vpiArithLShiftOp: {
+        current_node->type = AST::AST_SHIFT_SLEFT;
+        log_assert(current_node->children.size() == 2);
+        auto unsigned_node = new AST::AstNode(AST::AST_TO_UNSIGNED, current_node->children[1]);
+        current_node->children[1] = unsigned_node;
+        return;
+    }
+    case vpiArithRShiftOp: {
+        current_node->type = AST::AST_SHIFT_SRIGHT;
+        log_assert(current_node->children.size() == 2);
+        auto unsigned_node = new AST::AstNode(AST::AST_TO_UNSIGNED, current_node->children[1]);
+        current_node->children[1] = unsigned_node;
+        return;
+    }
+    case vpiPostIncOp: {
+        // TODO: Make this an actual post-increment op (currently it's a pre-increment)
+        log_warning("%.*s:%d: Post-incrementation operations are handled as pre-incrementation.\n", (int)object->VpiFile().length(),
+                    object->VpiFile().data(), object->VpiLineNo());
+        [[fallthrough]];
+    }
+    case vpiPreIncOp: {
+        current_node->type = AST::AST_ASSIGN_EQ;
+        auto id = current_node->children[0]->clone();
+        auto add_node = new AST::AstNode(AST::AST_ADD, id, AST::AstNode::mkconst_int(1, true));
+        add_node->filename = current_node->filename;
+        add_node->location = current_node->location;
+        current_node->children.push_back(add_node);
+        return;
+    }
+    case vpiPostDecOp: {
+        // TODO: Make this an actual post-decrement op (currently it's a pre-decrement)
+        log_warning("%.*s:%d: Post-decrementation operations are handled as pre-decrementation.\n", (int)object->VpiFile().length(),
+                    object->VpiFile().data(), object->VpiLineNo());
+        [[fallthrough]];
+    }
+    case vpiPreDecOp: {
+        current_node->type = AST::AST_ASSIGN_EQ;
+        auto id = current_node->children[0]->clone();
+        auto add_node = new AST::AstNode(AST::AST_SUB, id, AST::AstNode::mkconst_int(1, true));
+        add_node->filename = current_node->filename;
+        add_node->location = current_node->location;
+        current_node->children.push_back(add_node);
+        return;
+    }
+    case vpiConcatOp: {
+        current_node->type = AST::AST_CONCAT;
+        std::reverse(current_node->children.begin(), current_node->children.end());
+        return;
+    }
+    case vpiStreamLROp: {
+        auto concat_node = current_node->children.back();
+        current_node->children.pop_back();
+        delete current_node;
+        current_node = concat_node;
+        return;
+    }
+    case vpiNullOp: {
+        delete current_node;
+        current_node = nullptr;
+        return;
+    }
+    case vpiMinTypMaxOp: {
+        // ignore min and max and set only typ
+        log_assert(current_node->children.size() == 3);
+        auto tmp = current_node->children[1]->clone();
+        delete current_node;
+        current_node = tmp;
+        return;
+    }
+    // clang-format off
+    case vpiAddOp:                    current_node->type = AST::AST_ADD; return;
+    case vpiAssignmentOp:             current_node->type = AST::AST_ASSIGN_EQ; return;
+    case vpiBitAndOp:                 current_node->type = AST::AST_BIT_AND; return;
+    case vpiBitNegOp:                 current_node->type = AST::AST_BIT_NOT; return;
+    case vpiBitOrOp:                  current_node->type = AST::AST_BIT_OR; return;
+    case vpiBitXnorOp:                current_node->type = AST::AST_BIT_XNOR; return;
+    case vpiBitXorOp:                 current_node->type = AST::AST_BIT_XOR; return;
+    case vpiCaseEqOp:                 current_node->type = AST::AST_EQX; return;
+    case vpiCaseNeqOp:                current_node->type = AST::AST_NEX; return;
+    case vpiConditionOp:              current_node->type = AST::AST_TERNARY; return;
+    case vpiDivOp:                    current_node->type = AST::AST_DIV; return;
+    case vpiEqOp:                     current_node->type = AST::AST_EQ; return;
+    case vpiGeOp:                     current_node->type = AST::AST_GE; return;
+    case vpiGtOp:                     current_node->type = AST::AST_GT; return;
+    case vpiLeOp:                     current_node->type = AST::AST_LE; return;
+    case vpiLogAndOp:                 current_node->type = AST::AST_LOGIC_AND; return;
+    case vpiLogOrOp:                  current_node->type = AST::AST_LOGIC_OR; return;
+    case vpiLtOp:                     current_node->type = AST::AST_LT; return;
+    case vpiMinusOp:                  current_node->type = AST::AST_NEG; return;
+    case vpiModOp:                    current_node->type = AST::AST_MOD; return;
+    case vpiMultOp:                   current_node->type = AST::AST_MUL; return;
+    case vpiMultiAssignmentPatternOp: current_node->type = AST::AST_REPLICATE; return;
+    case vpiMultiConcatOp:            current_node->type = AST::AST_REPLICATE; return;
+    case vpiNegedgeOp:                current_node->type = AST::AST_NEGEDGE; return;
+    case vpiNeqOp:                    current_node->type = AST::AST_NE; return;
+    case vpiNotOp:                    current_node->type = AST::AST_LOGIC_NOT; return;
+    case vpiPlusOp:                   current_node->type = AST::AST_POS; return;
+    case vpiPosedgeOp:                current_node->type = AST::AST_POSEDGE; return;
+    case vpiPowerOp:                  current_node->type = AST::AST_POW; return;
+    case vpiUnaryAndOp:               current_node->type = AST::AST_REDUCE_AND; return;
+    case vpiUnaryOrOp:                current_node->type = AST::AST_REDUCE_OR; return;
+    case vpiUnaryXNorOp:              current_node->type = AST::AST_REDUCE_XNOR; return;
+    case vpiUnaryXorOp:               current_node->type = AST::AST_REDUCE_XOR; return;
+        // clang-format on
+    }
+
+    delete current_node;
+    current_node = nullptr;
+    report_error("%.*s:%d: Encountered unhandled operation type %d\n", (int)object->VpiFile().length(), object->VpiFile().data(), object->VpiLineNo(),
+                 operation);
 }
 
 void UhdmAst::process_stream_op()
