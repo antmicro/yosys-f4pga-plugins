@@ -2612,12 +2612,16 @@ void UhdmAst::process_enum_typespec()
 
     if (current_node->str.empty()) {
         // anonymous typespec, check if not already created
-        if (const auto enum_iter = shared.anonymous_enums.find(enum_object); enum_iter != shared.anonymous_enums.end()) {
-            // we already created typedef for this.
-            delete current_node;
-            current_node = make_node(AST::AST_WIRETYPE);
-            current_node->str = enum_iter->second;
-            return;
+        log_assert(shared.current_top_node);
+        for (auto pair : shared.anonymous_enums[shared.current_top_node->str]) {
+            UHDM::AnySet visited;
+            if (pair.first->Compare(enum_object, visited) == 0) {
+                // we already created typedef for this.
+                delete current_node;
+                current_node = make_node(AST::AST_WIRETYPE);
+                current_node->str = pair.second;
+                return;
+            }
         }
     }
 
@@ -2717,7 +2721,7 @@ void UhdmAst::process_enum_typespec()
         move_type_to_new_typedef(shared.current_top_node, current_node);
         current_node = make_node(AST::AST_WIRETYPE);
         current_node->str = typedef_name;
-        shared.anonymous_enums[enum_object] = std::move(typedef_name);
+        shared.anonymous_enums[shared.current_top_node->str][enum_object] = std::move(typedef_name);
     }
 }
 
