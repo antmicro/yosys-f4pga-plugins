@@ -4433,6 +4433,16 @@ void UhdmAst::process_tf_call(AST::AstNodeType type)
             current_node->children.push_back(node);
         }
     });
+
+    const uhdm_handle *const handle = (const uhdm_handle *)obj_h;
+    if (handle->type == UHDM::uhdmfunc_call) {
+        const auto *const base_object = (const UHDM::BaseClass *)handle->object;
+        const auto *const fcall = base_object->Cast<const UHDM::func_call *>();
+        if (fcall->Function()) {
+            current_node->str = fcall->Function()->VpiFullName();
+            sanitize_symbol_name(current_node->str);
+        }
+    }
 }
 
 void UhdmAst::process_immediate_assert()
