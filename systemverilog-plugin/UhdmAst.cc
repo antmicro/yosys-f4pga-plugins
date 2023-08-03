@@ -4439,8 +4439,11 @@ void UhdmAst::process_tf_call(AST::AstNodeType type)
         const auto *const base_object = (const UHDM::BaseClass *)handle->object;
         const auto *const fcall = base_object->Cast<const UHDM::func_call *>();
         if (fcall->Function()) {
-            current_node->str = fcall->Function()->VpiFullName();
-            sanitize_symbol_name(current_node->str);
+            auto fname = fcall->Function()->VpiFullName();
+            if (fname.find("::") != std::string_view::npos) {
+                current_node->str = fname;
+                sanitize_symbol_name(current_node->str);
+            }
         }
     }
 }
